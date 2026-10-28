@@ -107,6 +107,12 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chips button{padding:7px 12px;border-radius:999px;background:var(--surface2);color:var(--muted);font-size:14px}
 .chips button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);font-weight:650}
+.menu{display:flex;flex-direction:column;gap:8px}
+.menu .mi{width:100%;text-align:left;padding:14px;border-radius:10px;background:var(--surface2);font-size:16px;font-weight:600}
+.menu .mi.danger{color:var(--bad)}
+.menu .lbl{margin:6px 0 0}
+.menu .mv{display:flex;gap:8px}.menu .mv .mi{text-align:center;padding:12px 6px}
+.card,.tile{-webkit-touch-callout:none}
 .imgprev{max-height:52dvh;overflow:auto;border-radius:10px;background:var(--bg)}
 .imgprev img{display:block;width:100%;height:auto;margin-bottom:6px}
 .seg{display:flex;background:var(--surface2);border-radius:10px;padding:3px;gap:3px}
@@ -292,6 +298,12 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
     <button class="btn danger" id="eDel">Eliminar</button>
     <button class="btn primary" id="eSave">Guardar</button>
   </div>
+</div></dialog>
+
+<!-- Menú de un juego -->
+<dialog id="dlgMenu"><div class="sheet">
+  <h2><span id="mTitle">Juego</span><button class="icon-btn" data-close aria-label="Cerrar">✕</button></h2>
+  <div class="menu" id="mBody"></div>
 </div></dialog>
 
 <!-- Imagen de la lista -->
@@ -824,11 +836,45 @@ $("#file").addEventListener("change", async e => {
 
 $("#vt").addEventListener("click", e => { const b = e.target.closest("button[data-v]"); if (!b || b.dataset.v === view) return; view = b.dataset.v; store.set("view", view); render(); });
 
+/* ---------- menú contextual de un juego ---------- */
+let menuAt = 0;
+function openMenu(id, ctx) {
+  const g = games.find(x => x.id === id); if (!g) return;
+  const inFav = ctx === "fav";
+  $("#mTitle").textContent = g.title;
+  const item = (label, fn, cls = "") => h("button", { type: "button", class: "mi " + cls, onclick: async () => { $("#dlgMenu").close(); await fn(); } }, label);
+  const save = async (msg, mutate) => { mutate(); await DB.put(g); render(); if (msg) toast(msg); };
+  const others = STATUS.filter(st => st.id !== g.status);
+  const body = [
+    item("Editar", () => openEdit(g.id)),
+    ...(inFav ? [] : [item(g.favorite ? "Quitar de favoritos" : "Añadir a favoritos", () => save(g.favorite ? "Quitado de Favoritos" : "Añadido a Favoritos", () => {
+      g.favorite = !g.favorite; g.favRank = null; if (g.favorite) appendRank(g, "favRank", games.filter(x => x.favorite));
+    }))]),
+    h("span", { class: "lbl" }, "Mover a"),
+    h("div", { class: "mv" }, others.map(st => item(st.label, () => save("Movido a " + st.label, () => {
+      g.status = st.id; g.updated = Date.now(); if (st.id === "played" && !g.finished) g.finished = Date.now();
+      g.rank = null; appendRank(g, "rank", games.filter(x => x.status === st.id));
+    })))),
+    inFav
+      ? item("Quitar de Favoritos", () => save("Quitado de Favoritos", () => { g.favorite = false; g.favRank = null; }), "danger")
+      : item("Eliminar juego", async () => {
+          if (!confirm(`¿Eliminar "${g.title}"?`)) return;
+          await DB.del(g.id); games = games.filter(x => x.id !== g.id); render(); toast("Eliminado");
+        }, "danger")
+  ];
+  $("#mBody").replaceChildren(...body);
+  menuAt = performance.now(); openDlg($("#dlgMenu"));
+}
+$("#dlgMenu").addEventListener("click", e => { if (e.target === e.currentTarget && performance.now() - menuAt < 500) e.stopImmediatePropagation(); }, true);
+let lastPtr = "mouse";
+window.addEventListener("pointerdown", e => { lastPtr = e.pointerType; }, true);
+
 /* reordenar favoritos arrastrando (solo en Favoritos con "Mi orden" y sin filtro) */
 const reorder = (() => {
   const LONG = 350, SLOP = 8, list = $("#list");
   let st = null, suppress = false;
   const enabled = () => tab !== "home" && effectiveSort() === "custom" && !filter.trim();
+  const arm = () => { if (st) { st.armed = true; if (navigator.vibrate) try { navigator.vibrate(12); } catch {} } };
   const itemOf = n => n && n.closest ? n.closest(".card,.tile") : null;
 
   function cleanup() {
@@ -881,25 +927,38 @@ const reorder = (() => {
     if (!st || e.pointerId !== st.id) return;
     st.x = e.clientX; st.y = e.clientY;
     if (!st.active) {
-      if (Math.hypot(st.x - st.x0, st.y - st.y0) > SLOP) { if (st.type === "mouse") activate(); else cleanup(); }
+      if (Math.hypot(st.x - st.x0, st.y - st.y0) > SLOP) { if (st.type === "mouse" && st.canDrag) activate(); else cleanup(); }
       return;
     }
+    if (Math.hypot(st.x - st.x0, st.y - st.y0) > SLOP) st.moved = true;
     st.el.style.left = (st.x - st.ox) + "px"; st.el.style.top = (st.y - st.oy) + "px";
     place();
   }
-  function up(e) { if (!st || e.pointerId !== st.id) return; if (st.active) finish(true); else cleanup(); }
+  function up(e) {
+    if (!st || e.pointerId !== st.id) return;
+    const id = st.el.dataset.id, still = !st.moved;
+    if (st.active) { finish(!still); if (still) openMenu(id, tab); }
+    else if (st.armed) { suppress = true; setTimeout(() => { suppress = false; }, 400); cleanup(); openMenu(id, tab); }
+    else cleanup();
+  }
   function cancel(e) { if (!st || e.pointerId !== st.id) return; if (st.active) finish(false); else cleanup(); }
 
   list.addEventListener("pointerdown", e => {
-    if (st || !enabled() || (e.pointerType === "mouse" && e.button !== 0)) return;
+    if (st || tab === "home" || (e.pointerType === "mouse" && e.button !== 0)) return;
+    const canDrag = enabled();
+    if (e.pointerType === "mouse" && !canDrag) return;
     const el = itemOf(e.target); if (!el || !list.contains(el)) return;
-    st = { el, id: e.pointerId, type: e.pointerType, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, active: false, ph: null, css: "", ox: 0, oy: 0, raf: 0, timer: 0 };
-    if (e.pointerType !== "mouse") st.timer = setTimeout(activate, LONG);
+    st = { el, id: e.pointerId, type: e.pointerType, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, active: false, ph: null, css: "", ox: 0, oy: 0, raf: 0, timer: 0, canDrag, armed: false, moved: false };
+    if (e.pointerType !== "mouse") st.timer = setTimeout(canDrag ? activate : arm, LONG);
     window.addEventListener("pointermove", move); window.addEventListener("pointerup", up); window.addEventListener("pointercancel", cancel);
   });
   window.addEventListener("touchmove", e => { if (st && st.active) e.preventDefault(); }, { passive: false });
   list.addEventListener("click", e => { if (suppress) { e.stopPropagation(); e.preventDefault(); } }, true);
-  list.addEventListener("contextmenu", e => { if (enabled()) e.preventDefault(); });
+  list.addEventListener("contextmenu", e => {
+    const el = itemOf(e.target); if (!el || !list.contains(el)) return;
+    e.preventDefault();
+    if (lastPtr === "mouse" && !st) openMenu(el.dataset.id, tab);   // clic derecho; en táctil el menú sale al soltar
+  });
 })();
 
 /* arrastrar entre categorías en Inicio (cambiar de estado, añadir a Favoritos, reordenar) */
@@ -997,22 +1056,32 @@ const homeDrag = (() => {
       if (Math.hypot(st.x - st.x0, st.y - st.y0) > SLOP) { if (st.type === "mouse") activate(); else cleanup(); }
       return;
     }
+    if (Math.hypot(st.x - st.x0, st.y - st.y0) > SLOP) st.moved = true;
     st.el.style.left = (st.x - st.ox) + "px"; st.el.style.top = (st.y - st.oy) + "px";
     place();
   }
-  function up(e) { if (!st || e.pointerId !== st.id) return; if (st.active) finish(true); else cleanup(); }
+  function up(e) {
+    if (!st || e.pointerId !== st.id) return;
+    if (!st.active) { cleanup(); return; }
+    const id = st.el.dataset.id, cat = st.el.closest(".strip") ? st.el.closest(".strip").dataset.cat : null, still = !st.moved;
+    finish(!still); if (still) openMenu(id, cat);
+  }
   function cancel(e) { if (!st || e.pointerId !== st.id) return; if (st.active) finish(false); else cleanup(); }
 
   box.addEventListener("pointerdown", e => {
     if (st || tab !== "home" || (e.pointerType === "mouse" && e.button !== 0)) return;
     const el = tileOf(e.target); if (!el || !box.contains(el)) return;
-    st = { el, id: e.pointerId, type: e.pointerType, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, active: false, ph: null, css: "", ox: 0, oy: 0, raf: 0, timer: 0, over: null, cat: null };
+    st = { el, id: e.pointerId, type: e.pointerType, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, active: false, ph: null, css: "", ox: 0, oy: 0, raf: 0, timer: 0, over: null, cat: null, moved: false };
     if (e.pointerType !== "mouse") st.timer = setTimeout(activate, LONG);
     window.addEventListener("pointermove", move); window.addEventListener("pointerup", up); window.addEventListener("pointercancel", cancel);
   });
   window.addEventListener("touchmove", e => { if (st && st.active) e.preventDefault(); }, { passive: false });
   box.addEventListener("click", e => { if (suppress) { e.stopPropagation(); e.preventDefault(); } }, true);
-  box.addEventListener("contextmenu", e => { if (tileOf(e.target)) e.preventDefault(); });
+  box.addEventListener("contextmenu", e => {
+    const el = tileOf(e.target); if (!el) return;
+    e.preventDefault();
+    if (lastPtr === "mouse" && !st) openMenu(el.dataset.id, el.closest(".strip").dataset.cat);
+  });
 })();
 
 /* filtros */
