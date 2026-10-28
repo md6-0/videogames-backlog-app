@@ -71,6 +71,12 @@ main{padding:12px 16px}
 .list.grid .empty{grid-column:1/-1;width:100%}
 .list.grid .tile{flex:none;width:100%;height:auto;aspect-ratio:3/4.1}
 .tile .hrt{position:absolute;top:5px;left:7px;font-size:16px;line-height:1;color:var(--accent);text-shadow:0 1px 3px rgba(0,0,0,.7)}
+.hint{color:var(--muted);font-size:13px;margin:0 0 2px;text-align:left}
+.list.grid .hint{grid-column:1/-1}
+button.hint{color:var(--accent);padding:2px 0}
+.ph{border:2px dashed var(--accent);border-radius:3px;background:rgba(102,192,244,.08);min-height:60px}
+.list.sortable .card,.list.sortable .tile{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.dragging{box-shadow:0 12px 32px rgba(0,0,0,.65)!important;transform:scale(1.03);opacity:.96;transition:none}
 .empty{text-align:center;color:var(--muted);padding:56px 24px}
 .empty b{display:block;color:var(--text);font-size:18px;margin-bottom:6px}
 nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;background:#101822;border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
@@ -287,6 +293,14 @@ const CATS = ["playing", "played", "backlog", "fav"];
 const HOME_MAX = 12;
 const catLabel = id => id === "fav" ? "Favoritos" : STATUS.find(s => s.id === id).label;
 const inCat = id => id === "fav" ? games.filter(g => g.favorite) : games.filter(g => g.status === id);
+const effectiveSort = () => (sortBy === "custom" && tab !== "fav") ? "recent" : sortBy;
+const byCustom = (x, y) => (x.favRank ?? 1e9) - (y.favRank ?? 1e9) || y.updated - x.updated;
+function syncSortSelect() {
+  const sel = $("#sort"), opt = sel.querySelector('option[value="custom"]');
+  if (tab === "fav" && !opt) sel.prepend(new Option("Mi orden", "custom"));
+  if (tab !== "fav" && opt) opt.remove();
+  sel.value = effectiveSort();
+}
 function visible() {
   let a = inCat(tab);
   const f = filter.trim().toLowerCase();
@@ -296,8 +310,9 @@ function visible() {
     rating: (x, y) => (y.rating ?? -1) - (x.rating ?? -1) || x.title.localeCompare(y.title),
     title: (x, y) => x.title.localeCompare(y.title, "es"),
     year: (x, y) => (y.year || 0) - (x.year || 0),
-    hours: (x, y) => (y.hours ?? -1) - (x.hours ?? -1) || x.title.localeCompare(y.title, "es")
-  }[sortBy];
+    hours: (x, y) => (y.hours ?? -1) - (x.hours ?? -1) || x.title.localeCompare(y.title, "es"),
+    custom: byCustom
+  }[effectiveSort()];
   return a.sort(cmp);
 }
 function coverEl(g, cls = "cover") {
@@ -322,7 +337,7 @@ function go(id, push = true) {
 addEventListener("popstate", e => { const id = (e.state && e.state.tab) || "home"; if (id !== tab) { tab = id; filter = ""; $("#q").value = ""; render(); } });
 
 function tileEl(g, showFav = false) {
-  const t = h("button", { class: "tile", onclick: () => openEdit(g.id), "aria-label": g.title });
+  const t = h("button", { class: "tile", "data-id": g.id, onclick: () => openEdit(g.id), "aria-label": g.title });
   const u = safeUrl(g.cover);
   if (u) t.style.backgroundImage = `url("${u.replace(/"/g, "%22")}")`; else t.append((g.title || "?").trim().charAt(0).toUpperCase());
   if (g.rating != null) { const c = h("span", { class: "chip" }, fmtRating(g.rating)); c.style.background = ratingColor(g.rating); t.append(c); }
@@ -334,7 +349,7 @@ function renderHome() {
   const box = $("#home"); box.replaceChildren();
   if (!games.length) { box.append(h("div", { class: "empty" }, h("b", {}, "Tu biblioteca está vacía"), "Pulsa + para añadir tu primer juego.")); return; }
   for (const id of CATS) {
-    const items = inCat(id).sort((a, b) => b.updated - a.updated);
+    const items = inCat(id).sort(id === "fav" ? byCustom : (a, b) => b.updated - a.updated);
     const sec = h("section", { class: "cat", "aria-label": catLabel(id) });
     sec.append(h("button", { class: "cat-h", onclick: () => go(id), "aria-label": `Ver ${catLabel(id)}` },
       h("span", { class: "cat-t" }, catLabel(id)), h("span", { class: "cat-n" }, String(items.length)), h("span", { class: "cat-go", "aria-hidden": "true" }, "›")));
@@ -363,17 +378,25 @@ function render() {
   $("#vt").classList.toggle("hidden", home);
   for (const b of document.querySelectorAll("#vt button")) b.setAttribute("aria-pressed", String(b.dataset.v === view));
   if (home) { renderHome(); return; }
-  const list = $("#list"); list.replaceChildren(); list.className = "list" + (view === "grid" ? " grid" : "");
+  syncSortSelect();
+  const list = $("#list"); list.replaceChildren();
+  const canSort = tab === "fav" && effectiveSort() === "custom" && !filter.trim();
+  list.className = "list" + (view === "grid" ? " grid" : "") + (canSort ? " sortable" : "");
   const items = visible();
   if (!items.length) {
     const msgs = MSGS[tab];
     list.append(h("div", { class: "empty" }, h("b", {}, filter ? "Sin resultados" : msgs[0]), filter ? "Prueba con otro filtro." : msgs[1]));
     return;
   }
+  if (tab === "fav" && items.length > 1) {
+    if (effectiveSort() !== "custom") list.append(h("button", { class: "hint", onclick: () => { sortBy = "custom"; store.set("sort", sortBy); render(); } }, "Ordenar a mi gusto →"));
+    else if (filter.trim()) list.append(h("p", { class: "hint" }, "Borra el filtro para reordenar."));
+    else list.append(h("p", { class: "hint" }, "Mantén pulsado un juego y arrástralo para cambiar el orden."));
+  }
   for (const g of items) {
     if (view === "grid") { list.append(tileEl(g, tab !== "fav")); continue; }
     const sub = [g.year, g.platforms, g.hours != null ? fmtHours(g.hours) : ""].filter(Boolean).join(" · ");
-    const c = h("button", { class: "card", onclick: () => openEdit(g.id), "aria-label": g.title });
+    const c = h("button", { class: "card", "data-id": g.id, onclick: () => openEdit(g.id), "aria-label": g.title });
     const u = safeUrl(g.cover);
     if (u) c.style.backgroundImage = `url("${u.replace(/"/g, "%22")}")`;
     else c.append(h("span", { class: "initial" }, (g.title || "?").trim().charAt(0).toUpperCase()));
@@ -528,7 +551,7 @@ $("#file").addEventListener("change", async e => {
       status: STATUS.some(s => s.id === g.status) ? g.status : "backlog",
       rating: typeof g.rating === "number" && g.rating >= 0 && g.rating <= 10 ? g.rating : null,
       hours: g.hours == null ? null : cleanHours(g.hours),
-      favorite: !!g.favorite, notes: String(g.notes || ""), added: g.added || Date.now(), updated: g.updated || Date.now(), finished: g.finished || null }));
+      favorite: !!g.favorite, favRank: Number.isFinite(g.favRank) ? g.favRank : null, notes: String(g.notes || ""), added: g.added || Date.now(), updated: g.updated || Date.now(), finished: g.finished || null }));
     if (!confirm(`Se reemplazarán tus ${games.length} juegos actuales por ${clean.length} del archivo. ¿Continuar?`)) return;
     await DB.replaceAll(clean); games = clean; $("#dlgSet").close(); render(); toast("Importados " + clean.length);
   } catch { toast("Archivo no válido"); }
@@ -536,9 +559,85 @@ $("#file").addEventListener("change", async e => {
 
 $("#vt").addEventListener("click", e => { const b = e.target.closest("button[data-v]"); if (!b || b.dataset.v === view) return; view = b.dataset.v; store.set("view", view); render(); });
 
+/* reordenar favoritos arrastrando (solo en Favoritos con "Mi orden" y sin filtro) */
+const reorder = (() => {
+  const LONG = 350, SLOP = 8, list = $("#list");
+  let st = null, suppress = false;
+  const enabled = () => tab === "fav" && effectiveSort() === "custom" && !filter.trim();
+  const itemOf = n => n && n.closest ? n.closest(".card,.tile") : null;
+
+  function cleanup() {
+    if (!st) return;
+    clearTimeout(st.timer); cancelAnimationFrame(st.raf);
+    window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); window.removeEventListener("pointercancel", cancel);
+    st = null;
+  }
+  function activate() {
+    if (!st || st.active) return;
+    clearTimeout(st.timer); st.active = true;
+    const el = st.el, r = el.getBoundingClientRect();
+    st.ph = h("div", { class: "ph", "aria-hidden": "true" }); st.ph.style.height = r.height + "px";
+    el.before(st.ph);
+    st.ox = st.x - r.left; st.oy = st.y - r.top; st.css = el.getAttribute("style") || "";
+    Object.assign(el.style, { position: "fixed", left: r.left + "px", top: r.top + "px", width: r.width + "px", height: r.height + "px", margin: "0", zIndex: "30" });
+    el.classList.add("dragging");
+    if (navigator.vibrate) try { navigator.vibrate(12); } catch {}
+    st.raf = requestAnimationFrame(tick);
+  }
+  function place() {
+    const t = document.elementsFromPoint(st.x, st.y).map(itemOf).find(n => n && n !== st.el && list.contains(n));
+    if (!t) return;
+    if (st.ph.compareDocumentPosition(t) & Node.DOCUMENT_POSITION_FOLLOWING) t.after(st.ph); else t.before(st.ph);
+  }
+  function tick() {
+    if (!st || !st.active) return;
+    const top = $("header").getBoundingClientRect().bottom + 24, bot = innerHeight - $("#tabs").offsetHeight - 24;
+    let v = 0;
+    if (st.y < top) v = -Math.min(16, (top - st.y) / 4 + 2); else if (st.y > bot) v = Math.min(16, (st.y - bot) / 4 + 2);
+    if (v) { window.scrollBy(0, v); place(); }
+    st.raf = requestAnimationFrame(tick);
+  }
+  function finish(save) {
+    const { el, ph, css } = st;
+    el.classList.remove("dragging"); if (css) el.setAttribute("style", css); else el.removeAttribute("style");
+    let ids = null;
+    if (save) { ph.replaceWith(el); ids = [...list.querySelectorAll(".card,.tile")].map(x => x.dataset.id); } else ph.remove();
+    suppress = true; setTimeout(() => { suppress = false; }, 400);
+    cleanup();
+    if (ids) {
+      const byId = new Map(games.map(g => [g.id, g])), puts = [];
+      ids.forEach((id, i) => { const g = byId.get(id); if (g && g.favRank !== i) { g.favRank = i; puts.push(DB.put(g)); } });
+      Promise.all(puts).catch(() => toast("No se pudo guardar el orden"));
+    }
+    render();
+  }
+  function move(e) {
+    if (!st || e.pointerId !== st.id) return;
+    st.x = e.clientX; st.y = e.clientY;
+    if (!st.active) {
+      if (Math.hypot(st.x - st.x0, st.y - st.y0) > SLOP) { if (st.type === "mouse") activate(); else cleanup(); }
+      return;
+    }
+    st.el.style.left = (st.x - st.ox) + "px"; st.el.style.top = (st.y - st.oy) + "px";
+    place();
+  }
+  function up(e) { if (!st || e.pointerId !== st.id) return; if (st.active) finish(true); else cleanup(); }
+  function cancel(e) { if (!st || e.pointerId !== st.id) return; if (st.active) finish(false); else cleanup(); }
+
+  list.addEventListener("pointerdown", e => {
+    if (st || !enabled() || (e.pointerType === "mouse" && e.button !== 0)) return;
+    const el = itemOf(e.target); if (!el || !list.contains(el)) return;
+    st = { el, id: e.pointerId, type: e.pointerType, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, active: false, ph: null, css: "", ox: 0, oy: 0, raf: 0, timer: 0 };
+    if (e.pointerType !== "mouse") st.timer = setTimeout(activate, LONG);
+    window.addEventListener("pointermove", move); window.addEventListener("pointerup", up); window.addEventListener("pointercancel", cancel);
+  });
+  window.addEventListener("touchmove", e => { if (st && st.active) e.preventDefault(); }, { passive: false });
+  list.addEventListener("click", e => { if (suppress) { e.stopPropagation(); e.preventDefault(); } }, true);
+  list.addEventListener("contextmenu", e => { if (enabled()) e.preventDefault(); });
+})();
+
 /* filtros */
 $("#q").addEventListener("input", e => { filter = e.target.value; render(); });
-$("#sort").value = sortBy;
 $("#sort").addEventListener("change", e => { sortBy = e.target.value; store.set("sort", sortBy); render(); });
 
 /* arranque */
