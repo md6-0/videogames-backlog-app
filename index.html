@@ -35,23 +35,26 @@ header{position:sticky;top:0;z-index:5;background:linear-gradient(#1b2838,#171a2
 .tools select{width:auto;max-width:42%}
 main{padding:12px 16px}
 .list{display:flex;flex-direction:column;gap:10px}
-.card{display:flex;gap:12px;background:var(--surface);border-radius:3px;padding:10px;text-align:left;width:100%;align-items:stretch}
+.card{position:relative;display:block;width:100%;min-height:132px;padding:0;border-radius:3px;overflow:hidden;text-align:left;background:var(--surface2) center/cover no-repeat;color:#fff}
+.card::before{content:"";position:absolute;inset:0;background:linear-gradient(to top,rgba(8,12,18,.93) 0%,rgba(8,12,18,.6) 42%,rgba(8,12,18,.1) 100%)}
+.card .initial{position:absolute;inset:0;display:grid;place-items:start center;padding-top:6px;font-size:56px;line-height:1.1;font-weight:800;color:rgba(255,255,255,.16)}
+.card .body{position:absolute;left:0;right:48px;bottom:0;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.card .title{font-size:17px;font-weight:650;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+.card .sub{color:rgba(255,255,255,.78);font-size:13px}
+.card .heart{position:absolute;right:12px;bottom:10px;font-size:20px;line-height:1;color:rgba(255,255,255,.7)}
+.card .heart.on{color:var(--accent)}
+.card .pill{position:absolute;top:8px;left:8px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding:2px 7px;border-radius:3px;background:rgba(0,0,0,.6);color:#fff}
 .cover{width:62px;min-width:62px;height:84px;border-radius:8px;background:var(--surface2) center/cover no-repeat;display:grid;place-items:center;color:var(--muted);font-size:22px;font-weight:700}
 .meta{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:3px}
 .title{font-weight:650;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .sub{color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.side{display:flex;flex-direction:column;align-items:flex-end;justify-content:space-between}
-.score{min-width:44px;text-align:center;font-weight:800;font-size:17px;border-radius:10px;padding:5px 8px;background:var(--surface2);color:var(--muted)}
-.score.has{color:#0f1115}
-.heart{font-size:18px;line-height:1;color:var(--muted)}
-.heart.on{color:var(--accent)}
 .cat{margin:0 -16px 20px}
 .cat-h{display:flex;align-items:baseline;gap:8px;width:100%;padding:0 16px 8px;text-align:left}
 .cat-t{font-size:18px;font-weight:600;color:#fff}
 .cat-n{color:var(--muted);font-size:14px;flex:1}
 .cat-go{color:var(--muted);font-size:22px;line-height:1}
 .cat-empty{margin:0 16px;padding:14px;border:1px dashed var(--line);border-radius:12px;color:var(--muted);font-size:14px}
-.tile .chip{position:absolute;top:6px;right:6px;min-width:30px;text-align:center;padding:2px 6px;border-radius:8px;font-size:12px;font-weight:800;color:#0f1115}
+.tile .chip,.card .chip{position:absolute;top:6px;right:6px;min-width:30px;text-align:center;padding:2px 6px;border-radius:8px;font-size:12px;font-weight:800;color:#0f1115}
 .tile.more{font-size:14px;font-weight:650;text-align:center;padding:10px;color:var(--text)}
 .top h1 small{font-size:14px;color:var(--muted);font-weight:600}
 .strip{display:flex;gap:10px;overflow-x:auto;padding:0 16px 4px;scroll-snap-type:x proximity;scroll-padding:0 16px;scrollbar-width:none;overscroll-behavior-x:contain}
@@ -353,14 +356,15 @@ function render() {
   }
   for (const g of items) {
     const sub = [g.year, g.platforms, g.hours != null ? fmtHours(g.hours) : ""].filter(Boolean).join(" · ");
-    const sc = h("div", { class: "score" + (g.rating != null ? " has" : "") }, fmtRating(g.rating));
-    if (g.rating != null) sc.style.background = ratingColor(g.rating);
-    list.append(h("button", { class: "card", onclick: () => openEdit(g.id) },
-      coverEl(g),
-      h("div", { class: "meta" }, h("div", { class: "title" }, g.title),
-        sub ? h("div", { class: "sub" }, sub) : null,
-        tab === "fav" ? h("div", { class: "sub" }, STATUS.find(s => s.id === g.status).label) : null),
-      h("div", { class: "side" }, sc, h("span", { class: "heart" + (g.favorite ? " on" : ""), "aria-label": g.favorite ? "Favorito" : "" }, g.favorite ? "♥" : "♡"))));
+    const c = h("button", { class: "card", onclick: () => openEdit(g.id), "aria-label": g.title });
+    const u = safeUrl(g.cover);
+    if (u) c.style.backgroundImage = `url("${u.replace(/"/g, "%22")}")`;
+    else c.append(h("span", { class: "initial" }, (g.title || "?").trim().charAt(0).toUpperCase()));
+    if (tab === "fav") c.append(h("span", { class: "pill" }, STATUS.find(s => s.id === g.status).label));
+    if (g.rating != null) { const r = h("span", { class: "chip" }, fmtRating(g.rating)); r.style.background = ratingColor(g.rating); c.append(r); }
+    c.append(h("div", { class: "body" }, h("div", { class: "title" }, g.title), sub ? h("div", { class: "sub" }, sub) : null),
+      h("span", { class: "heart" + (g.favorite ? " on" : ""), "aria-hidden": "true" }, g.favorite ? "♥" : "♡"));
+    list.append(c);
   }
 }
 
