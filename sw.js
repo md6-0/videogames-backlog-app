@@ -1,4 +1,4 @@
-const VERSION = "v21";
+const VERSION = "v22";
 const CACHE = "biblioteca-" + VERSION;
 const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 
