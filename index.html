@@ -83,7 +83,7 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
 .res .cover{width:44px;min-width:44px;height:58px;font-size:16px}
 .note{font-size:13px;color:var(--muted)}
 .note a{color:var(--accent)}
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
 .stat{background:var(--surface2);border-radius:12px;padding:10px;text-align:center}
 .stat b{display:block;font-size:22px}
 .stat span{font-size:12px;color:var(--muted)}
@@ -106,6 +106,7 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
       <option value="rating">Mejor nota</option>
       <option value="title">A–Z</option>
       <option value="year">Año</option>
+      <option value="hours">Más horas</option>
     </select>
   </div>
 </header>
@@ -149,6 +150,8 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
       <input type="range" id="eRange" min="0" max="10" step="0.5" value="5" aria-label="Nota">
     </div>
     <button class="btn small" id="eClear" style="margin-top:6px">Quitar nota</button></div>
+  <div class="row"><label for="eHours">Horas jugadas</label>
+    <input id="eHours" type="text" inputmode="decimal" autocomplete="off" placeholder="Sin registrar (admite 12,5)"></div>
   <div class="row"><button class="btn" id="eFav" aria-pressed="false" style="width:100%"></button></div>
   <div class="row"><label for="eNotes">Notas</label><textarea id="eNotes" rows="3" placeholder="Opinión, horas, lo que sea…"></textarea></div>
   <div class="row"><label for="eCoverUrl">URL de portada (opcional)</label><input id="eCoverUrl" inputmode="url" placeholder="https://…"></div>
@@ -243,6 +246,8 @@ let editing = null;
 
 const ratingColor = r => r >= 8 ? "var(--good)" : r >= 5 ? "var(--mid)" : "var(--bad)";
 const fmtRating = r => r == null ? "—" : (Number.isInteger(r) ? String(r) : r.toFixed(1));
+const fmtHours = n => n.toLocaleString("es-ES", { maximumFractionDigits: 1 }) + " h";
+const cleanHours = v => { const n = typeof v === "number" ? v : parseFloat(String(v).replace(",", ".")); return Number.isFinite(n) && n >= 0 && n <= 99999 ? n : null; };
 
 /* ---------- render ---------- */
 function visible() {
@@ -253,7 +258,8 @@ function visible() {
     recent: (x, y) => y.updated - x.updated,
     rating: (x, y) => (y.rating ?? -1) - (x.rating ?? -1) || x.title.localeCompare(y.title),
     title: (x, y) => x.title.localeCompare(y.title, "es"),
-    year: (x, y) => (y.year || 0) - (x.year || 0)
+    year: (x, y) => (y.year || 0) - (x.year || 0),
+    hours: (x, y) => (y.hours ?? -1) - (x.hours ?? -1) || x.title.localeCompare(y.title, "es")
   }[sortBy];
   return a.sort(cmp);
 }
@@ -290,7 +296,7 @@ function render() {
     return;
   }
   for (const g of items) {
-    const sub = [g.year, g.platforms].filter(Boolean).join(" · ");
+    const sub = [g.year, g.platforms, g.hours != null ? fmtHours(g.hours) : ""].filter(Boolean).join(" · ");
     const sc = h("div", { class: "score" + (g.rating != null ? " has" : "") }, fmtRating(g.rating));
     if (g.rating != null) sc.style.background = ratingColor(g.rating);
     list.append(h("button", { class: "card", onclick: () => openEdit(g.id) },
@@ -330,6 +336,7 @@ function openEdit(id, isNew = false) {
   $("#editHead").textContent = isNew ? "Nuevo juego" : "Editar juego";
   $("#eTitle").value = g.title; $("#eYear").value = g.year || ""; $("#ePlat").value = g.platforms || "";
   $("#eNotes").value = g.notes || ""; $("#eCoverUrl").value = g.cover || "";
+  $("#eHours").value = g.hours ?? "";
   const c = coverEl(g); $("#eCover").replaceWith(c); c.id = "eCover";
   setSeg($("#eStatus"), g.status, v => editing.status = v);
   paintRating(); paintFav();
@@ -343,7 +350,10 @@ $("#eSave").addEventListener("click", async () => {
   const title = $("#eTitle").value.trim();
   if (!title) { $("#eTitle").focus(); toast("Pon un título"); return; }
   const y = parseInt($("#eYear").value, 10);
-  const g = { ...editing, title, year: Number.isFinite(y) ? y : null, platforms: $("#ePlat").value.trim(),
+  const hrsRaw = $("#eHours").value.trim();
+  const hours = hrsRaw === "" ? null : cleanHours(hrsRaw);
+  if (hrsRaw !== "" && hours == null) { $("#eHours").focus(); toast("Horas no válidas"); return; }
+  const g = { ...editing, hours, title, year: Number.isFinite(y) ? y : null, platforms: $("#ePlat").value.trim(),
     notes: $("#eNotes").value.trim(), cover: safeUrl($("#eCoverUrl").value) || editing.cover || "", updated: Date.now() };
   delete g._new;
   if (g.status === "played" && !g.finished) g.finished = Date.now();
@@ -361,7 +371,7 @@ $("#eDel").addEventListener("click", async () => {
 const KEY = () => store.get("rawgKey") || "";
 function blank(over = {}) {
   return { id: uid(), title: "", year: null, platforms: "", cover: "", rawgId: null, status: tab === "fav" ? "backlog" : tab,
-    rating: null, favorite: tab === "fav", notes: "", added: Date.now(), updated: Date.now(), finished: null, ...over };
+    rating: null, hours: null, favorite: tab === "fav", notes: "", added: Date.now(), updated: Date.now(), finished: null, ...over };
 }
 async function addGame(over) {
   const g = blank(over); await DB.put(g); games.push(g);
@@ -416,7 +426,8 @@ function openSettings() {
   const done = games.filter(g => g.status === "played"), rated = games.filter(g => g.rating != null);
   const avg = rated.length ? (rated.reduce((s, g) => s + g.rating, 0) / rated.length) : null;
   $("#stats").replaceChildren(
-    ...[[games.length, "Total"], [done.length, "Jugados"], [avg == null ? "—" : avg.toFixed(1), "Nota media"]]
+    ...[[games.length, "Total"], [done.length, "Jugados"], [avg == null ? "—" : avg.toFixed(1), "Nota media"],
+        [Math.round(games.reduce((s, g) => s + (g.hours || 0), 0)).toLocaleString("es-ES"), "Horas totales"]]
       .map(([n, l]) => h("div", { class: "stat" }, h("b", {}, String(n)), h("span", {}, l))));
   openDlg($("#dlgSet"));
 }
@@ -439,6 +450,7 @@ $("#file").addEventListener("change", async e => {
       platforms: String(g.platforms || ""), cover: safeUrl(g.cover || ""), rawgId: g.rawgId ?? null,
       status: STATUS.some(s => s.id === g.status) ? g.status : "backlog",
       rating: typeof g.rating === "number" && g.rating >= 0 && g.rating <= 10 ? g.rating : null,
+      hours: g.hours == null ? null : cleanHours(g.hours),
       favorite: !!g.favorite, notes: String(g.notes || ""), added: g.added || Date.now(), updated: g.updated || Date.now(), finished: g.finished || null }));
     if (!confirm(`Se reemplazarán tus ${games.length} juegos actuales por ${clean.length} del archivo. ¿Continuar?`)) return;
     await DB.replaceAll(clean); games = clean; $("#dlgSet").close(); render(); toast("Importados " + clean.length);
