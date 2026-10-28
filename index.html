@@ -55,6 +55,7 @@ main{padding:12px var(--gutter)}
 .cat-t{font-size:18px;font-weight:600;color:#fff}
 .cat-n{color:var(--muted);font-size:14px;flex:1}
 .cat-go{color:var(--muted);font-size:22px;line-height:1}
+.strip .cat-empty{margin:0;flex:1}
 .cat-empty{margin:0 var(--gutter);padding:14px;border:1px dashed var(--line);border-radius:12px;color:var(--muted);font-size:14px}
 .tile .chip,.card .chip{position:absolute;top:6px;right:6px;min-width:30px;text-align:center;padding:2px 6px;border-radius:8px;font-size:12px;font-weight:800;color:#0f1115}
 .tile.more{font-size:14px;font-weight:650;text-align:center;padding:10px;color:var(--text)}
@@ -76,12 +77,15 @@ main{padding:12px var(--gutter)}
 .list .hint,.list .empty{grid-column:1/-1}
 button.hint{color:var(--accent);padding:2px 0}
 .ph{border:2px dashed var(--accent);border-radius:3px;background:rgba(102,192,244,.08);min-height:60px}
-.list.sortable .card,.list.sortable .tile{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.list.sortable .card,.list.sortable .tile,#home .tile{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .dragging{box-shadow:0 12px 32px rgba(0,0,0,.65)!important;transform:scale(1.03);opacity:.96;transition:none}
 .upd{position:fixed;left:12px;right:88px;bottom:calc(var(--tabs) + env(safe-area-inset-bottom) + 14px);z-index:25;display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--accent);border-radius:6px;padding:8px 8px 8px 12px;font-size:14px;box-shadow:0 6px 18px rgba(0,0,0,.45)}
 .upd span{flex:1;line-height:1.2}
 .upd .btn{flex:none}
 .upd .icon-btn{width:32px;height:32px;flex:none;background:none;color:var(--muted);font-size:14px}
+.cat.drop .strip{background:rgba(102,192,244,.09);outline:2px dashed var(--accent);outline-offset:-2px}
+.dnd .strip{scroll-snap-type:none}
+.strip .ph{flex:0 0 auto}
 .empty{text-align:center;color:var(--muted);padding:56px 24px}
 .empty b{display:block;color:var(--text);font-size:18px;margin-bottom:6px}
 nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;background:#101822;border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
@@ -434,17 +438,16 @@ function tileEl(g, showFav = false) {
 function renderHome() {
   const box = $("#home"); box.replaceChildren();
   if (!games.length) { box.append(h("div", { class: "empty" }, h("b", {}, "Tu biblioteca está vacía"), "Pulsa + para añadir tu primer juego.")); return; }
+  if (!store.get("dndHomeSeen")) box.append(h("p", { class: "hint", style: "margin-bottom:12px" }, "Mantén pulsado un juego y arrástralo a otra fila para cambiarlo de categoría."));
   for (const id of CATS) {
     const items = inCat(id).sort(byRank(rankKey(id)));
     const sec = h("section", { class: "cat", "aria-label": catLabel(id) });
     sec.append(h("button", { class: "cat-h", onclick: () => go(id), "aria-label": `Ver ${catLabel(id)}` },
       h("span", { class: "cat-t" }, catLabel(id)), h("span", { class: "cat-n" }, String(items.length)), h("span", { class: "cat-go", "aria-hidden": "true" }, "›")));
-    if (!items.length) sec.append(h("p", { class: "cat-empty" }, MSGS[id][1]));
-    else {
-      const strip = h("div", { class: "strip" }, ...items.slice(0, HOME_MAX).map(tileEl));
-      if (items.length > HOME_MAX) strip.append(h("button", { class: "tile more", onclick: () => go(id) }, `Ver todos (${items.length})`));
-      sec.append(strip);
-    }
+    const strip = h("div", { class: "strip", "data-cat": id }, ...items.slice(0, HOME_MAX).map(tileEl));
+    if (!items.length) strip.append(h("p", { class: "cat-empty" }, MSGS[id][1]));
+    if (items.length > HOME_MAX) strip.append(h("button", { class: "tile more", onclick: () => go(id) }, `Ver todos (${items.length})`));
+    sec.append(strip);
     box.append(sec);
   }
 }
@@ -728,6 +731,120 @@ const reorder = (() => {
   window.addEventListener("touchmove", e => { if (st && st.active) e.preventDefault(); }, { passive: false });
   list.addEventListener("click", e => { if (suppress) { e.stopPropagation(); e.preventDefault(); } }, true);
   list.addEventListener("contextmenu", e => { if (enabled()) e.preventDefault(); });
+})();
+
+/* arrastrar entre categorías en Inicio (cambiar de estado, añadir a Favoritos, reordenar) */
+const homeDrag = (() => {
+  const LONG = 350, SLOP = 8, box = $("#home");
+  let st = null, suppress = false;
+  const tileOf = n => n && n.closest ? n.closest(".strip .tile:not(.more)") : null;
+
+  function mark(cat) {
+    if (st.cat === cat) return;
+    if (st.cat) st.cat.classList.remove("drop");
+    st.cat = cat; if (cat) cat.classList.add("drop");
+  }
+  function cleanup() {
+    if (!st) return;
+    clearTimeout(st.timer); cancelAnimationFrame(st.raf);
+    window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); window.removeEventListener("pointercancel", cancel);
+    document.body.classList.remove("dnd"); mark(null); st = null;
+  }
+  function activate() {
+    if (!st || st.active) return;
+    clearTimeout(st.timer); st.active = true;
+    const el = st.el, r = el.getBoundingClientRect();
+    st.ph = h("div", { class: "ph", "aria-hidden": "true" }); st.ph.style.width = r.width + "px"; st.ph.style.height = r.height + "px";
+    el.before(st.ph);
+    st.ox = st.x - r.left; st.oy = st.y - r.top; st.css = el.getAttribute("style") || "";
+    Object.assign(el.style, { position: "fixed", left: r.left + "px", top: r.top + "px", width: r.width + "px", height: r.height + "px", margin: "0", zIndex: "30", flex: "none" });
+    el.classList.add("dragging"); document.body.classList.add("dnd");
+    st.over = el.closest(".strip"); mark(el.closest(".cat"));
+    if (navigator.vibrate) try { navigator.vibrate(12); } catch {}
+    st.raf = requestAnimationFrame(tick);
+  }
+  function append(strip) { const more = strip.querySelector(".tile.more"); if (more) more.before(st.ph); else strip.append(st.ph); }
+  function place() {
+    const els = document.elementsFromPoint(st.x, st.y).filter(n => n !== st.el && !st.el.contains(n)); // ignora la propia tarjeta flotante
+    const cat = els.map(n => n.closest && n.closest(".cat")).find(Boolean);
+    if (!cat) { st.over = null; mark(null); return; }
+    mark(cat);
+    const strip = cat.querySelector(".strip"); st.over = strip;
+    const empty = strip.querySelector(".cat-empty"); if (empty) empty.style.display = "none";
+    const t = els.map(tileOf).find(n => n && n !== st.el && strip.contains(n));
+    if (t) {
+      if (st.ph.parentNode === strip) { if (st.ph.compareDocumentPosition(t) & Node.DOCUMENT_POSITION_FOLLOWING) t.after(st.ph); else t.before(st.ph); }
+      else { const r = t.getBoundingClientRect(); if (st.x < r.left + r.width / 2) t.before(st.ph); else t.after(st.ph); }
+      return;
+    }
+    const tiles = [...strip.querySelectorAll(".tile:not(.more):not(.dragging)")], last = tiles[tiles.length - 1];
+    if (!tiles.length || st.x > last.getBoundingClientRect().right) { if (st.ph.parentNode !== strip || st.ph.nextElementSibling !== null && !st.ph.nextElementSibling.classList.contains("more")) append(strip); }
+    else if (st.ph.parentNode !== strip) { const first = tiles.find(n => n.getBoundingClientRect().left + n.getBoundingClientRect().width / 2 > st.x) || last; first.before(st.ph); }
+  }
+  function tick() {
+    if (!st || !st.active) return;
+    const nr = $("#tabs").getBoundingClientRect();
+    const top = $("header").getBoundingClientRect().bottom + 24, bot = (nr.width > innerWidth / 2 ? nr.top : innerHeight) - 24;
+    let v = 0, moved = false;
+    if (st.y < top) v = -Math.min(16, (top - st.y) / 4 + 2); else if (st.y > bot) v = Math.min(16, (st.y - bot) / 4 + 2);
+    if (v) { window.scrollBy(0, v); moved = true; }
+    if (st.over) {
+      const r = st.over.getBoundingClientRect();
+      if (st.x < r.left + 40) { st.over.scrollLeft -= 12; moved = true; } else if (st.x > r.right - 40) { st.over.scrollLeft += 12; moved = true; }
+    }
+    if (moved) place();
+    st.raf = requestAnimationFrame(tick);
+  }
+  // Aplica el cambio: estado / favorito + posición dentro de la categoría de destino.
+  function applyDrop(id, catId, idx) {
+    const g = games.find(x => x.id === id); if (!g) return null;
+    let msg = null;
+    if (catId === "fav") { if (!g.favorite) { g.favorite = true; msg = "Añadido a Favoritos"; } }
+    else if (g.status !== catId) { g.status = catId; g.updated = Date.now(); if (catId === "played" && !g.finished) g.finished = Date.now(); msg = "Movido a " + catLabel(catId); }
+    const key = rankKey(catId);
+    const list = inCat(catId).filter(x => x.id !== g.id).sort(byRank(key));
+    list.splice(Math.min(Math.max(idx, 0), list.length), 0, g);
+    const puts = [];
+    list.forEach((x, i) => { if (x[key] !== i || x === g) { x[key] = i; puts.push(DB.put(x)); } });
+    return { msg, done: Promise.all(puts) };
+  }
+  function finish(save) {
+    const { el, ph, css } = st, strip = ph.parentNode;
+    let res = null;
+    if (save && st.over && strip && strip.classList && strip.classList.contains("strip")) {
+      const idx = [...strip.querySelectorAll(".tile:not(.more):not(.dragging), .ph")].indexOf(ph);
+      res = applyDrop(el.dataset.id, strip.dataset.cat, idx);
+      if (res) store.set("dndHomeSeen", "1");
+    }
+    el.classList.remove("dragging"); if (css) el.setAttribute("style", css); else el.removeAttribute("style");
+    ph.remove();
+    suppress = true; setTimeout(() => { suppress = false; }, 400);
+    cleanup(); render();
+    if (res) { if (res.msg) toast(res.msg); res.done.catch(() => toast("No se pudo guardar el cambio")); }
+  }
+  function move(e) {
+    if (!st || e.pointerId !== st.id) return;
+    st.x = e.clientX; st.y = e.clientY;
+    if (!st.active) {
+      if (Math.hypot(st.x - st.x0, st.y - st.y0) > SLOP) { if (st.type === "mouse") activate(); else cleanup(); }
+      return;
+    }
+    st.el.style.left = (st.x - st.ox) + "px"; st.el.style.top = (st.y - st.oy) + "px";
+    place();
+  }
+  function up(e) { if (!st || e.pointerId !== st.id) return; if (st.active) finish(true); else cleanup(); }
+  function cancel(e) { if (!st || e.pointerId !== st.id) return; if (st.active) finish(false); else cleanup(); }
+
+  box.addEventListener("pointerdown", e => {
+    if (st || tab !== "home" || (e.pointerType === "mouse" && e.button !== 0)) return;
+    const el = tileOf(e.target); if (!el || !box.contains(el)) return;
+    st = { el, id: e.pointerId, type: e.pointerType, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, active: false, ph: null, css: "", ox: 0, oy: 0, raf: 0, timer: 0, over: null, cat: null };
+    if (e.pointerType !== "mouse") st.timer = setTimeout(activate, LONG);
+    window.addEventListener("pointermove", move); window.addEventListener("pointerup", up); window.addEventListener("pointercancel", cancel);
+  });
+  window.addEventListener("touchmove", e => { if (st && st.active) e.preventDefault(); }, { passive: false });
+  box.addEventListener("click", e => { if (suppress) { e.stopPropagation(); e.preventDefault(); } }, true);
+  box.addEventListener("contextmenu", e => { if (tileOf(e.target)) e.preventDefault(); });
 })();
 
 /* filtros */
