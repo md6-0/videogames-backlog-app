@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mi Biblioteca">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Mi Biblioteca</title>
+<style>
+:root{
+  --bg:#0f1115;--surface:#181b22;--surface2:#222631;--line:#2b303c;
+  --text:#eceef3;--muted:#8d95a6;--accent:#ff4d5e;--accent-ink:#fff;
+  --good:#3ddc97;--mid:#f5c542;--bad:#ff6b6b;
+  --r:14px;--tabs:64px;
+}
+@media (prefers-color-scheme:light){
+  :root{--bg:#f4f5f8;--surface:#fff;--surface2:#eceef3;--line:#dde0e8;--text:#14161c;--muted:#68707f}
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);font:16px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{min-height:100dvh;padding-bottom:calc(var(--tabs) + env(safe-area-inset-bottom) + 80px)}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+input,textarea,select{font:inherit;color:var(--text);background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
+input:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px}
+header{position:sticky;top:0;z-index:5;background:var(--bg);padding:calc(10px + env(safe-area-inset-top)) 16px 10px;border-bottom:1px solid var(--line)}
+.top{display:flex;align-items:center;gap:10px}
+.top h1{font-size:20px;margin:0;flex:1;letter-spacing:-.01em}
+.icon-btn{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(--surface)}
+.icon-btn svg{width:20px;height:20px}
+.tools{display:flex;gap:8px;margin-top:10px}
+.tools input{flex:1}
+.tools select{width:auto;max-width:42%}
+main{padding:12px 16px}
+.list{display:flex;flex-direction:column;gap:10px}
+.card{display:flex;gap:12px;background:var(--surface);border-radius:var(--r);padding:10px;text-align:left;width:100%;align-items:stretch}
+.cover{width:62px;min-width:62px;height:84px;border-radius:8px;background:var(--surface2) center/cover no-repeat;display:grid;place-items:center;color:var(--muted);font-size:22px;font-weight:700}
+.meta{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:3px}
+.title{font-weight:650;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.sub{color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.side{display:flex;flex-direction:column;align-items:flex-end;justify-content:space-between}
+.score{min-width:44px;text-align:center;font-weight:800;font-size:17px;border-radius:10px;padding:5px 8px;background:var(--surface2);color:var(--muted)}
+.score.has{color:#0f1115}
+.heart{font-size:18px;line-height:1;color:var(--muted)}
+.heart.on{color:var(--accent)}
+.empty{text-align:center;color:var(--muted);padding:56px 24px}
+.empty b{display:block;color:var(--text);font-size:18px;margin-bottom:6px}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+nav.tabs button{flex:1;height:var(--tabs);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:12px;color:var(--muted)}
+nav.tabs button svg{width:22px;height:22px}
+nav.tabs button[aria-selected=true]{color:var(--accent)}
+nav.tabs .n{font-variant-numeric:tabular-nums;opacity:.8}
+.fab{position:fixed;right:16px;bottom:calc(var(--tabs) + env(safe-area-inset-bottom) + 16px);z-index:6;width:56px;height:56px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;box-shadow:0 6px 18px rgba(0,0,0,.35)}
+.fab svg{width:26px;height:26px}
+dialog{border:0;padding:0;background:var(--surface);color:var(--text);width:100%;max-width:560px;margin:auto auto 0;border-radius:20px 20px 0 0;max-height:92dvh}
+dialog::backdrop{background:rgba(0,0,0,.55)}
+@media (min-width:600px){dialog{margin:auto;border-radius:20px}}
+.sheet{padding:16px 16px calc(20px + env(safe-area-inset-bottom));overflow:auto;max-height:92dvh}
+.sheet h2{margin:0 0 12px;font-size:18px;display:flex;align-items:center;gap:8px}
+.sheet h2 span{flex:1}
+.row{margin:14px 0}
+.row>label,.lbl{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:6px}
+.seg{display:flex;background:var(--surface2);border-radius:10px;padding:3px;gap:3px}
+.seg button{flex:1;padding:9px 4px;border-radius:8px;font-size:14px;color:var(--muted)}
+.seg button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);font-weight:650}
+.rate{display:flex;align-items:center;gap:14px}
+.rate .big{font-size:40px;font-weight:800;min-width:90px;font-variant-numeric:tabular-nums}
+.rate input[type=range]{flex:1;padding:0;border:0;background:none;accent-color:var(--accent);height:36px}
+.btns{display:flex;gap:10px;margin-top:18px}
+.btn{flex:1;padding:12px;border-radius:12px;background:var(--surface2);font-weight:600}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.danger{color:var(--bad)}
+.btn.small{flex:none;padding:8px 12px;font-size:14px}
+.hero{display:flex;gap:12px;align-items:center}
+.hero .cover{width:72px;min-width:72px;height:96px}
+.hero input{font-weight:650}
+.res{display:flex;gap:10px;align-items:center;width:100%;text-align:left;padding:8px;border-radius:12px}
+.res:active{background:var(--surface2)}
+.res .cover{width:44px;min-width:44px;height:58px;font-size:16px}
+.note{font-size:13px;color:var(--muted)}
+.note a{color:var(--accent)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:var(--surface2);border-radius:12px;padding:10px;text-align:center}
+.stat b{display:block;font-size:22px}
+.stat span{font-size:12px;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:calc(var(--tabs) + env(safe-area-inset-bottom) + 84px);transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;z-index:20;max-width:90%}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <h1>Mi Biblioteca</h1>
+    <button class="icon-btn" id="btnSettings" aria-label="Ajustes y copia de seguridad">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    </button>
+  </div>
+  <div class="tools">
+    <input id="q" type="search" placeholder="Filtrar mi lista…" aria-label="Filtrar mi lista" autocomplete="off">
+    <select id="sort" aria-label="Ordenar">
+      <option value="recent">Recientes</option>
+      <option value="rating">Mejor nota</option>
+      <option value="title">A–Z</option>
+      <option value="year">Año</option>
+    </select>
+  </div>
+</header>
+
+<main><div id="list" class="list"></div></main>
+
+<button class="fab" id="fab" aria-label="Añadir juego">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+</button>
+
+<nav class="tabs" id="tabs" role="tablist"></nav>
+
+<!-- Añadir -->
+<dialog id="dlgAdd"><div class="sheet">
+  <h2><span>Añadir juego</span><button class="icon-btn" data-close aria-label="Cerrar">✕</button></h2>
+  <div id="noKey" class="note hidden" style="margin-bottom:10px">Para buscar con portada hace falta una clave gratuita de RAWG. <button class="btn small" id="goKey">Configurar</button></div>
+  <input id="sq" type="search" placeholder="Busca un juego…" autocomplete="off" aria-label="Buscar juego">
+  <div id="results" style="margin-top:8px"></div>
+  <div class="btns"><button class="btn" id="manual">Añadir a mano</button></div>
+  <p class="note" style="margin-top:14px">Datos e imágenes de <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a>.</p>
+</div></dialog>
+
+<!-- Editar -->
+<dialog id="dlgEdit"><div class="sheet">
+  <h2><span id="editHead">Juego</span><button class="icon-btn" data-close aria-label="Cerrar">✕</button></h2>
+  <div class="hero">
+    <div class="cover" id="eCover"></div>
+    <div style="flex:1;min-width:0">
+      <input id="eTitle" placeholder="Título" aria-label="Título">
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input id="eYear" inputmode="numeric" placeholder="Año" aria-label="Año" style="width:90px">
+        <input id="ePlat" placeholder="Plataforma" aria-label="Plataforma">
+      </div>
+    </div>
+  </div>
+  <div class="row"><span class="lbl">Estado</span>
+    <div class="seg" id="eStatus"></div></div>
+  <div class="row"><span class="lbl">Nota (0–10)</span>
+    <div class="rate">
+      <div class="big" id="eBig">—</div>
+      <input type="range" id="eRange" min="0" max="10" step="0.5" value="5" aria-label="Nota">
+    </div>
+    <button class="btn small" id="eClear" style="margin-top:6px">Quitar nota</button></div>
+  <div class="row"><button class="btn" id="eFav" aria-pressed="false" style="width:100%"></button></div>
+  <div class="row"><label for="eNotes">Notas</label><textarea id="eNotes" rows="3" placeholder="Opinión, horas, lo que sea…"></textarea></div>
+  <div class="row"><label for="eCoverUrl">URL de portada (opcional)</label><input id="eCoverUrl" inputmode="url" placeholder="https://…"></div>
+  <div class="btns">
+    <button class="btn danger" id="eDel">Eliminar</button>
+    <button class="btn primary" id="eSave">Guardar</button>
+  </div>
+</div></dialog>
+
+<!-- Ajustes -->
+<dialog id="dlgSet"><div class="sheet">
+  <h2><span>Ajustes</span><button class="icon-btn" data-close aria-label="Cerrar">✕</button></h2>
+  <div class="stats" id="stats"></div>
+  <div class="row"><label for="apiKey">Clave API de RAWG</label>
+    <input id="apiKey" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Pega aquí tu clave">
+    <p class="note">Gratis en <a href="https://rawg.io/apidocs" target="_blank" rel="noopener">rawg.io/apidocs</a>. Se guarda solo en este dispositivo.</p>
+    <button class="btn small" id="saveKey">Guardar clave</button></div>
+  <div class="row"><span class="lbl">Copia de seguridad</span>
+    <div class="btns" style="margin-top:0">
+      <button class="btn" id="exp">Exportar</button>
+      <button class="btn" id="imp">Importar</button>
+    </div>
+    <p class="note">Tus datos viven solo en este dispositivo. Exporta de vez en cuando: si borras los datos del navegador, se pierden.</p>
+    <input type="file" id="file" accept="application/json,.json" class="hidden">
+  </div>
+</div></dialog>
+
+<script>
+"use strict";
+/* ---------- utilidades ---------- */
+const $ = s => document.querySelector(s);
+function h(tag, attrs = {}, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") e.className = v;
+    else if (k.startsWith("on")) e.addEventListener(k.slice(2), v);
+    else if (v !== false && v != null) e.setAttribute(k, v);
+  }
+  for (const k of kids.flat()) if (k != null) e.append(k.nodeType ? k : document.createTextNode(k));
+  return e;
+}
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
+function toast(msg) {
+  const t = h("div", { class: "toast", role: "status" }, msg);
+  document.body.append(t); setTimeout(() => t.remove(), 2400);
+}
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} }
+};
+const safeUrl = u => { try { const x = new URL(u); return /^https?:$/.test(x.protocol) ? x.href : ""; } catch { return ""; } };
+
+/* ---------- base de datos (IndexedDB) ---------- */
+const DB = (() => {
+  let db;
+  const open = () => new Promise((res, rej) => {
+    const r = indexedDB.open("biblioteca", 1);
+    r.onupgradeneeded = () => r.result.createObjectStore("games", { keyPath: "id" });
+    r.onsuccess = () => { db = r.result; res(); };
+    r.onerror = () => rej(r.error);
+  });
+  const tx = (mode, fn) => new Promise((res, rej) => {
+    const t = db.transaction("games", mode); const s = t.objectStore("games");
+    const out = fn(s); t.oncomplete = () => res(out && out.result); t.onerror = () => rej(t.error);
+  });
+  return {
+    open,
+    all: () => tx("readonly", s => s.getAll()),
+    put: g => tx("readwrite", s => s.put(g)),
+    del: id => tx("readwrite", s => s.delete(id)),
+    replaceAll: arr => tx("readwrite", s => { s.clear(); arr.forEach(g => s.put(g)); })
+  };
+})();
+
+/* ---------- estado ---------- */
+const STATUS = [
+  { id: "playing", label: "Jugando" },
+  { id: "played", label: "Jugados" },
+  { id: "backlog", label: "Backlog" }
+];
+const ICONS = {
+  playing: '<path d="M6 4l14 8-14 8z"/>',
+  played: '<path d="M20 6L9 17l-5-5"/>',
+  backlog: '<path d="M4 6h16M4 12h16M4 18h10"/>',
+  fav: '<path d="M12 21s-7-4.4-9.3-9A5.3 5.3 0 0 1 12 6a5.3 5.3 0 0 1 9.3 6c-2.3 4.6-9.3 9-9.3 9z"/>'
+};
+let games = [];
+let tab = store.get("tab") || "playing";
+let sortBy = store.get("sort") || "recent";
+let filter = "";
+let editing = null;
+
+const ratingColor = r => r >= 8 ? "var(--good)" : r >= 5 ? "var(--mid)" : "var(--bad)";
+const fmtRating = r => r == null ? "—" : (Number.isInteger(r) ? String(r) : r.toFixed(1));
+
+/* ---------- render ---------- */
+function visible() {
+  let a = tab === "fav" ? games.filter(g => g.favorite) : games.filter(g => g.status === tab);
+  const f = filter.trim().toLowerCase();
+  if (f) a = a.filter(g => (g.title + " " + (g.platforms || "")).toLowerCase().includes(f));
+  const cmp = {
+    recent: (x, y) => y.updated - x.updated,
+    rating: (x, y) => (y.rating ?? -1) - (x.rating ?? -1) || x.title.localeCompare(y.title),
+    title: (x, y) => x.title.localeCompare(y.title, "es"),
+    year: (x, y) => (y.year || 0) - (x.year || 0)
+  }[sortBy];
+  return a.sort(cmp);
+}
+function coverEl(g, cls = "cover") {
+  const c = h("div", { class: cls });
+  const u = safeUrl(g.cover);
+  if (u) c.style.backgroundImage = `url("${u.replace(/"/g, "%22")}")`;
+  else c.textContent = (g.title || "?").trim().charAt(0).toUpperCase();
+  return c;
+}
+function render() {
+  const nav = $("#tabs"); nav.replaceChildren();
+  const tabs = [...STATUS, { id: "fav", label: "Favoritos" }];
+  for (const t of tabs) {
+    const n = t.id === "fav" ? games.filter(g => g.favorite).length : games.filter(g => g.status === t.id).length;
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 24 24"); svg.setAttribute("fill", t.id === "fav" && tab === "fav" ? "currentColor" : "none");
+    svg.setAttribute("stroke", "currentColor"); svg.setAttribute("stroke-width", "2");
+    svg.setAttribute("stroke-linecap", "round"); svg.setAttribute("stroke-linejoin", "round");
+    svg.innerHTML = ICONS[t.id];
+    nav.append(h("button", { role: "tab", "aria-selected": String(tab === t.id), onclick: () => { tab = t.id; store.set("tab", tab); render(); window.scrollTo(0, 0); } },
+      svg, h("span", {}, t.label, " ", h("span", { class: "n" }, n))));
+  }
+  const list = $("#list"); list.replaceChildren();
+  const items = visible();
+  if (!items.length) {
+    const msgs = {
+      playing: ["Nada en marcha", "Pulsa + para añadir lo que estás jugando."],
+      played: ["Aún no has terminado ninguno", "Aquí irán tus juegos jugados, con su nota."],
+      backlog: ["Backlog vacío", "Apunta aquí lo que quieres jugar."],
+      fav: ["Sin favoritos", "Marca un juego con el corazón y aparecerá aquí."]
+    }[tab];
+    list.append(h("div", { class: "empty" }, h("b", {}, filter ? "Sin resultados" : msgs[0]), filter ? "Prueba con otro filtro." : msgs[1]));
+    return;
+  }
+  for (const g of items) {
+    const sub = [g.year, g.platforms].filter(Boolean).join(" · ");
+    const sc = h("div", { class: "score" + (g.rating != null ? " has" : "") }, fmtRating(g.rating));
+    if (g.rating != null) sc.style.background = ratingColor(g.rating);
+    list.append(h("button", { class: "card", onclick: () => openEdit(g.id) },
+      coverEl(g),
+      h("div", { class: "meta" }, h("div", { class: "title" }, g.title),
+        sub ? h("div", { class: "sub" }, sub) : null,
+        tab === "fav" ? h("div", { class: "sub" }, STATUS.find(s => s.id === g.status).label) : null),
+      h("div", { class: "side" }, sc, h("span", { class: "heart" + (g.favorite ? " on" : ""), "aria-label": g.favorite ? "Favorito" : "" }, g.favorite ? "♥" : "♡"))));
+  }
+}
+
+/* ---------- diálogos ---------- */
+function openDlg(d) { if (!d.open) d.showModal(); }
+document.addEventListener("click", e => { const c = e.target.closest("[data-close]"); if (c) c.closest("dialog").close(); });
+for (const d of document.querySelectorAll("dialog"))
+  d.addEventListener("click", e => { if (e.target === d) d.close(); });
+
+/* editar */
+function setSeg(container, value, onPick) {
+  container.replaceChildren(...STATUS.map(s =>
+    h("button", { type: "button", "aria-pressed": String(s.id === value), onclick: () => { onPick(s.id); setSeg(container, s.id, onPick); } }, s.label)));
+}
+function paintRating() {
+  $("#eBig").textContent = fmtRating(editing.rating);
+  $("#eBig").style.color = editing.rating == null ? "var(--muted)" : ratingColor(editing.rating);
+  $("#eRange").value = editing.rating ?? 5;
+  $("#eRange").style.opacity = editing.rating == null ? ".4" : "1";
+}
+function paintFav() {
+  const b = $("#eFav"); b.setAttribute("aria-pressed", String(editing.favorite));
+  b.textContent = editing.favorite ? "♥ En favoritos" : "♡ Añadir a favoritos";
+  b.style.color = editing.favorite ? "var(--accent)" : "";
+}
+function openEdit(id, isNew = false) {
+  const g = games.find(x => x.id === id); if (!g) return;
+  editing = { ...g, _new: isNew };
+  $("#editHead").textContent = isNew ? "Nuevo juego" : "Editar juego";
+  $("#eTitle").value = g.title; $("#eYear").value = g.year || ""; $("#ePlat").value = g.platforms || "";
+  $("#eNotes").value = g.notes || ""; $("#eCoverUrl").value = g.cover || "";
+  const c = coverEl(g); $("#eCover").replaceWith(c); c.id = "eCover";
+  setSeg($("#eStatus"), g.status, v => editing.status = v);
+  paintRating(); paintFav();
+  openDlg($("#dlgEdit"));
+}
+$("#eRange").addEventListener("input", e => { editing.rating = parseFloat(e.target.value); paintRating(); });
+$("#eClear").addEventListener("click", () => { editing.rating = null; paintRating(); });
+$("#eFav").addEventListener("click", () => { editing.favorite = !editing.favorite; paintFav(); });
+$("#eCoverUrl").addEventListener("change", e => { editing.cover = safeUrl(e.target.value); const c = coverEl(editing); $("#eCover").replaceWith(c); c.id = "eCover"; });
+$("#eSave").addEventListener("click", async () => {
+  const title = $("#eTitle").value.trim();
+  if (!title) { $("#eTitle").focus(); toast("Pon un título"); return; }
+  const y = parseInt($("#eYear").value, 10);
+  const g = { ...editing, title, year: Number.isFinite(y) ? y : null, platforms: $("#ePlat").value.trim(),
+    notes: $("#eNotes").value.trim(), cover: safeUrl($("#eCoverUrl").value) || editing.cover || "", updated: Date.now() };
+  delete g._new;
+  if (g.status === "played" && !g.finished) g.finished = Date.now();
+  await DB.put(g);
+  const i = games.findIndex(x => x.id === g.id); if (i >= 0) games[i] = g; else games.push(g);
+  $("#dlgEdit").close(); tab = tab === "fav" ? "fav" : g.status; store.set("tab", tab); render(); toast("Guardado");
+});
+$("#eDel").addEventListener("click", async () => {
+  if (!confirm(`¿Eliminar "${editing.title}"?`)) return;
+  await DB.del(editing.id); games = games.filter(x => x.id !== editing.id);
+  $("#dlgEdit").close(); render(); toast("Eliminado");
+});
+
+/* añadir */
+const KEY = () => store.get("rawgKey") || "";
+function blank(over = {}) {
+  return { id: uid(), title: "", year: null, platforms: "", cover: "", rawgId: null, status: tab === "fav" ? "backlog" : tab,
+    rating: null, favorite: tab === "fav", notes: "", added: Date.now(), updated: Date.now(), finished: null, ...over };
+}
+async function addGame(over) {
+  const g = blank(over); await DB.put(g); games.push(g);
+  $("#dlgAdd").close(); render(); openEdit(g.id, true);
+}
+function openAdd() {
+  $("#noKey").classList.toggle("hidden", !!KEY());
+  $("#sq").disabled = !KEY(); $("#sq").value = ""; $("#results").replaceChildren();
+  openDlg($("#dlgAdd")); if (KEY()) setTimeout(() => $("#sq").focus(), 50);
+}
+$("#fab").addEventListener("click", openAdd);
+$("#goKey").addEventListener("click", () => { $("#dlgAdd").close(); openSettings(); });
+$("#manual").addEventListener("click", () => addGame({ title: $("#sq").value.trim() }));
+
+let searchTimer, searchSeq = 0;
+$("#sq").addEventListener("input", e => {
+  clearTimeout(searchTimer);
+  const q = e.target.value.trim();
+  if (q.length < 2) { $("#results").replaceChildren(); return; }
+  searchTimer = setTimeout(() => search(q), 350);
+});
+async function search(q) {
+  const seq = ++searchSeq, box = $("#results");
+  box.replaceChildren(h("p", { class: "note" }, "Buscando…"));
+  try {
+    const url = `https://api.rawg.io/api/games?key=${encodeURIComponent(KEY())}&search=${encodeURIComponent(q)}&page_size=12&search_precise=true`;
+    const r = await fetch(url);
+    if (seq !== searchSeq) return;
+    if (r.status === 401 || r.status === 403) throw new Error("Clave no válida. Revísala en Ajustes.");
+    if (r.status === 429) throw new Error("Has agotado las peticiones de RAWG por este mes.");
+    if (!r.ok) throw new Error("RAWG respondió con error " + r.status);
+    const data = await r.json();
+    if (seq !== searchSeq) return;
+    if (!data.results?.length) { box.replaceChildren(h("p", { class: "note" }, "Sin resultados. Puedes añadirlo a mano.")); return; }
+    box.replaceChildren(...data.results.map(x => {
+      const year = x.released ? parseInt(x.released.slice(0, 4), 10) : null;
+      const plats = (x.parent_platforms || []).map(p => p.platform.name).join(", ");
+      const g = { title: x.name, year, platforms: plats, cover: safeUrl(x.background_image || ""), rawgId: x.id };
+      return h("button", { class: "res", onclick: () => addGame(g) }, coverEl(g),
+        h("div", { class: "meta" }, h("div", { class: "title" }, x.name), h("div", { class: "sub" }, [year, plats].filter(Boolean).join(" · "))));
+    }));
+  } catch (err) {
+    if (seq !== searchSeq) return;
+    const offline = !navigator.onLine || err instanceof TypeError;
+    box.replaceChildren(h("p", { class: "note", style: "color:var(--bad)" }, offline ? "No se pudo conectar con RAWG. Comprueba la conexión o añade el juego a mano." : err.message));
+  }
+}
+
+/* ajustes */
+function openSettings() {
+  $("#apiKey").value = KEY();
+  const done = games.filter(g => g.status === "played"), rated = games.filter(g => g.rating != null);
+  const avg = rated.length ? (rated.reduce((s, g) => s + g.rating, 0) / rated.length) : null;
+  $("#stats").replaceChildren(
+    ...[[games.length, "Total"], [done.length, "Jugados"], [avg == null ? "—" : avg.toFixed(1), "Nota media"]]
+      .map(([n, l]) => h("div", { class: "stat" }, h("b", {}, String(n)), h("span", {}, l))));
+  openDlg($("#dlgSet"));
+}
+$("#btnSettings").addEventListener("click", openSettings);
+$("#saveKey").addEventListener("click", () => { store.set("rawgKey", $("#apiKey").value.trim()); toast("Clave guardada"); });
+$("#exp").addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify({ app: "biblioteca", version: 1, exported: new Date().toISOString(), games }, null, 2)], { type: "application/json" });
+  const a = h("a", { href: URL.createObjectURL(blob), download: `biblioteca-${new Date().toISOString().slice(0, 10)}.json` });
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+});
+$("#imp").addEventListener("click", () => $("#file").click());
+$("#file").addEventListener("change", async e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  try {
+    const data = JSON.parse(await f.text());
+    const arr = Array.isArray(data) ? data : data.games;
+    if (!Array.isArray(arr)) throw new Error();
+    const clean = arr.filter(g => g && typeof g.title === "string" && g.title.trim()).map(g => ({
+      id: String(g.id || uid()), title: g.title.trim(), year: Number.isFinite(g.year) ? g.year : null,
+      platforms: String(g.platforms || ""), cover: safeUrl(g.cover || ""), rawgId: g.rawgId ?? null,
+      status: STATUS.some(s => s.id === g.status) ? g.status : "backlog",
+      rating: typeof g.rating === "number" && g.rating >= 0 && g.rating <= 10 ? g.rating : null,
+      favorite: !!g.favorite, notes: String(g.notes || ""), added: g.added || Date.now(), updated: g.updated || Date.now(), finished: g.finished || null }));
+    if (!confirm(`Se reemplazarán tus ${games.length} juegos actuales por ${clean.length} del archivo. ¿Continuar?`)) return;
+    await DB.replaceAll(clean); games = clean; $("#dlgSet").close(); render(); toast("Importados " + clean.length);
+  } catch { toast("Archivo no válido"); }
+});
+
+/* filtros */
+$("#q").addEventListener("input", e => { filter = e.target.value; render(); });
+$("#sort").value = sortBy;
+$("#sort").addEventListener("change", e => { sortBy = e.target.value; store.set("sort", sortBy); render(); });
+
+/* arranque */
+(async () => {
+  try { await DB.open(); games = await DB.all(); }
+  catch { toast("No se pudo abrir el almacenamiento local"); }
+  render();
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+  if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
+})();
+</script>
+</body>
+</html>
