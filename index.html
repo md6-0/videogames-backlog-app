@@ -254,6 +254,8 @@ main.enter{animation:pageIn .22s ease-out}
       <option value="title">A–Z</option>
       <option value="year">Año</option>
       <option value="hours">Más horas</option>
+      <option value="played">Jugado: reciente</option>
+      <option value="playedAsc">Jugado: antiguo</option>
     </select>
   </div>
 </header>
@@ -309,6 +311,11 @@ main.enter{animation:pageIn .22s ease-out}
       <input type="range" id="eRange" min="0" max="10" step="0.5" value="5" aria-label="Nota">
     </div>
     <button class="btn small" id="eClear" style="margin-top:6px">Quitar nota</button></div>
+  <div class="row"><span class="lbl">Cuándo lo jugaste</span>
+    <div style="display:flex;gap:10px">
+      <select id="ePlayedM" aria-label="Mes"></select>
+      <select id="ePlayedY" aria-label="Año"></select>
+    </div></div>
   <div class="row"><label for="eHours">Horas jugadas</label>
     <input id="eHours" type="text" inputmode="decimal" autocomplete="off" placeholder="Sin registrar (admite 12,5)"></div>
   <div class="row"><button class="btn" id="eFav" aria-pressed="false" style="width:100%"></button></div>
@@ -446,9 +453,9 @@ const DB = (() => {
 
 /* ---------- estado ---------- */
 const STATUS = [
+  { id: "backlog", label: "Backlog" },
   { id: "playing", label: "Jugando" },
-  { id: "played", label: "Jugados" },
-  { id: "backlog", label: "Backlog" }
+  { id: "played", label: "Jugados" }
 ];
 const ICONS = {
   home: '<path d="M3 11l9-8 9 8"/><path d="M5 10v10h14V10"/>',
@@ -470,7 +477,7 @@ const fmtHours = n => n.toLocaleString("es-ES", { maximumFractionDigits: 1 }) + 
 const cleanHours = v => { const n = typeof v === "number" ? v : parseFloat(String(v).replace(",", ".")); return Number.isFinite(n) && n >= 0 && n <= 99999 ? n : null; };
 
 /* ---------- render ---------- */
-const CATS = ["playing", "played", "backlog", "fav"];
+const CATS = ["backlog", "playing", "played", "fav"];
 const HOME_MAX = 12;
 const catLabel = id => id === "fav" ? "Favoritos" : STATUS.find(s => s.id === id).label;
 const inCat = id => id === "fav" ? games.filter(g => g.favorite) : games.filter(g => g.status === id);
@@ -484,6 +491,10 @@ function appendRank(g, key, list) {
 const byRank = key => (x, y) => (x[key] ?? 1e9) - (y[key] ?? 1e9) || y.updated - x.updated;
 const COLS_KEY = { list: "colsList", grid: "colsGrid" };
 const colsOf = m => { const v = parseInt(store.get(COLS_KEY[m]), 10); return v >= 1 && v <= 8 ? v : 0; };   // 0 = automático
+// Fecha en la que lo jugaste: playedY (año) y playedM (1-12, opcional). Sin fecha → siempre al final al ordenar.
+const playedKey = g => g.playedY ? g.playedY * 12 + (g.playedM ? g.playedM - 1 : 0) : null;
+const MONTHS = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+const playedLabel = g => !g.playedY ? "" : (g.playedM ? MONTHS[g.playedM - 1].slice(0, 3) + " " : "") + g.playedY;
 function visible() {
   let a = inCat(tab);
   const f = filter.trim().toLowerCase();
@@ -494,6 +505,8 @@ function visible() {
     title: (x, y) => x.title.localeCompare(y.title, "es"),
     year: (x, y) => (y.year || 0) - (x.year || 0),
     hours: (x, y) => (y.hours ?? -1) - (x.hours ?? -1) || x.title.localeCompare(y.title, "es"),
+    played: (x, y) => (playedKey(y) ?? -1) - (playedKey(x) ?? -1) || x.title.localeCompare(y.title, "es"),
+    playedAsc: (x, y) => (playedKey(x) ?? 1e9) - (playedKey(y) ?? 1e9) || x.title.localeCompare(y.title, "es"),
     custom: byRank(rankKey(tab))
   }[effectiveSort()];
   return a.sort(cmp);
@@ -574,7 +587,7 @@ function render() {
   }
   for (const g of items) {
     if (view === "grid") { list.append(tileEl(g, tab !== "fav")); continue; }
-    const sub = [g.year, g.platforms, g.hours != null ? fmtHours(g.hours) : ""].filter(Boolean).join(" · ");
+    const sub = [g.year, g.platforms, g.hours != null ? fmtHours(g.hours) : "", g.playedY ? "Jugado " + playedLabel(g) : ""].filter(Boolean).join(" · ");
     const c = h("button", { class: "card", "data-id": g.id, onclick: () => openEdit(g.id), "aria-label": g.title });
     const u = safeUrl(g.cover);
     if (u) c.style.backgroundImage = `url("${u.replace(/"/g, "%22")}")`;
@@ -645,6 +658,7 @@ function openEdit(id, isNew = false) {
   $("#eTitle").value = g.title; $("#eYear").value = g.year || ""; editing.plats = splitPlats(g.platforms); $("#ePlatOther").value = ""; paintPlats();
   $("#eNotes").value = g.notes || ""; $("#eCoverUrl").value = (g.cover || "").startsWith("data:") ? "" : (g.cover || ""); $("#eCoverUrl").placeholder = (g.cover || "").startsWith("data:") ? "Imagen subida desde el dispositivo" : "URL: https://…";
   $("#eHours").value = g.hours ?? "";
+  fillPlayed(g.playedY, g.playedM);
   const c = coverEl(g); $("#eCover").replaceWith(c); c.id = "eCover";
   setSeg($("#eStatus"), g.status, v => editing.status = v);
   paintRating(); paintFav();
@@ -653,6 +667,14 @@ function openEdit(id, isNew = false) {
 $("#eRange").addEventListener("input", e => { editing.rating = parseFloat(e.target.value); paintRating(); });
 $("#eClear").addEventListener("click", () => { editing.rating = null; paintRating(); });
 $("#eFav").addEventListener("click", () => { editing.favorite = !editing.favorite; paintFav(); });
+function fillPlayed(y, m) {
+  const ys = $("#ePlayedY"), ms = $("#ePlayedM"), now = new Date().getFullYear();
+  const years = []; for (let i = now + 1; i >= 1980; i--) years.push(i); if (y && !years.includes(y)) years.push(y);
+  ys.replaceChildren(h("option", { value: "" }, "Año"), ...years.map(v => h("option", { value: String(v) }, String(v))));
+  ms.replaceChildren(h("option", { value: "" }, "Mes"), ...MONTHS.map((n, i) => h("option", { value: String(i + 1) }, n[0].toUpperCase() + n.slice(1))));
+  ys.value = y ? String(y) : ""; ms.value = y && m ? String(m) : ""; ms.disabled = !y;
+}
+$("#ePlayedY").addEventListener("change", e => { const has = !!e.target.value; $("#ePlayedM").disabled = !has; if (!has) $("#ePlayedM").value = ""; });
 function paintCover() { const c = coverEl(editing); $("#eCover").replaceWith(c); c.id = "eCover"; }
 $("#eCoverPick").addEventListener("click", () => $("#eCoverFile").click());
 $("#eCoverClear").addEventListener("click", () => { editing.cover = ""; $("#eCoverUrl").value = ""; $("#eCoverUrl").placeholder = "URL: https://…"; paintCover(); });
@@ -675,7 +697,8 @@ $("#eSave").addEventListener("click", async () => {
   const hrsRaw = $("#eHours").value.trim();
   const hours = hrsRaw === "" ? null : cleanHours(hrsRaw);
   if (hrsRaw !== "" && hours == null) { $("#eHours").focus(); toast("Horas no válidas"); return; }
-  const g = { ...editing, hours, title, year: Number.isFinite(y) ? y : null, platforms: editing.plats.join(", "),
+  const py = parseInt($("#ePlayedY").value, 10), pm = parseInt($("#ePlayedM").value, 10);
+  const g = { ...editing, playedY: Number.isFinite(py) ? py : null, playedM: Number.isFinite(py) && Number.isFinite(pm) ? pm : null, hours, title, year: Number.isFinite(y) ? y : null, platforms: editing.plats.join(", "),
     notes: $("#eNotes").value.trim(), cover: safeUrl($("#eCoverUrl").value) || editing.cover || "", updated: Date.now() };
   delete g._new; delete g.plats;
   const orig = games.find(x => x.id === g.id);
@@ -778,7 +801,7 @@ async function buildImages() {
         const ls = wrapText(c, g.title, mw, 2); ls.forEach((l, k) => c.fillText(l, tx, y + 56 + k * 40));
         let cy = y + 56 + (ls.length - 1) * 40 + 42;
         c.fillStyle = col.muted; c.font = "500 26px system-ui, sans-serif";
-        const a = [g.year, g.hours != null ? fmtHours(g.hours) : "", tab === "fav" ? catLabel(g.status) : ""].filter(Boolean).join(" · ");
+        const a = [g.year, g.hours != null ? fmtHours(g.hours) : "", g.playedY ? "Jugado " + playedLabel(g) : "", tab === "fav" ? catLabel(g.status) : ""].filter(Boolean).join(" · ");
         if (a) { c.fillText(fitText(c, a, mw), tx, cy); cy += 36; }
         if (g.platforms) c.fillText(fitText(c, g.platforms, mw), tx, cy);
         if (g.rating != null) chip(c, fmtRating(g.rating), ratingHex(g.rating), W - P - 16 - 88, y + 16, 88, 56, 32);
@@ -915,6 +938,8 @@ $("#file").addEventListener("change", async e => {
       status: STATUS.some(s => s.id === g.status) ? g.status : "backlog",
       rating: typeof g.rating === "number" && g.rating >= 0 && g.rating <= 10 ? g.rating : null,
       hours: g.hours == null ? null : cleanHours(g.hours),
+      playedY: Number.isInteger(g.playedY) && g.playedY >= 1970 && g.playedY <= 2100 ? g.playedY : null,
+      playedM: Number.isInteger(g.playedY) && g.playedY >= 1970 && g.playedY <= 2100 && Number.isInteger(g.playedM) && g.playedM >= 1 && g.playedM <= 12 ? g.playedM : null,
       favorite: !!g.favorite, favRank: Number.isFinite(g.favRank) ? g.favRank : null, rank: Number.isFinite(g.rank) ? g.rank : null, notes: String(g.notes || ""), added: g.added || Date.now(), updated: g.updated || Date.now(), finished: g.finished || null }));
     if (!await ask({ title: "Importar copia", text: `Se reemplazarán tus ${games.length} juegos actuales por ${clean.length} del archivo. ¿Continuar?`, ok: "Reemplazar", danger: true })) return;
     await DB.replaceAll(clean); games = clean; $("#dlgSet").close(); render(); toast("Importados " + clean.length);
