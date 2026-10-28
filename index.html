@@ -78,6 +78,10 @@ button.hint{color:var(--accent);padding:2px 0}
 .ph{border:2px dashed var(--accent);border-radius:3px;background:rgba(102,192,244,.08);min-height:60px}
 .list.sortable .card,.list.sortable .tile{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .dragging{box-shadow:0 12px 32px rgba(0,0,0,.65)!important;transform:scale(1.03);opacity:.96;transition:none}
+.upd{position:fixed;left:12px;right:88px;bottom:calc(var(--tabs) + env(safe-area-inset-bottom) + 14px);z-index:25;display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--accent);border-radius:6px;padding:8px 8px 8px 12px;font-size:14px;box-shadow:0 6px 18px rgba(0,0,0,.45)}
+.upd span{flex:1;line-height:1.2}
+.upd .btn{flex:none}
+.upd .icon-btn{width:32px;height:32px;flex:none;background:none;color:var(--muted);font-size:14px}
 .empty{text-align:center;color:var(--muted);padding:56px 24px}
 .empty b{display:block;color:var(--text);font-size:18px;margin-bottom:6px}
 nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;background:#101822;border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
@@ -163,6 +167,7 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
   .res .cover{width:54px;min-width:54px;height:72px}
   .stats{grid-template-columns:repeat(4,1fr)}
   .toast{font-size:15px}
+  .upd{right:112px;font-size:15px}
 }
 
 /* ---------- Tablet horizontal / pantallas anchas: barra lateral ---------- */
@@ -173,6 +178,7 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
   nav.tabs button{flex:none;height:86px}
   .fab{bottom:28px;right:28px}
   .toast{bottom:36px}
+  .upd{left:calc(var(--rail) + 20px);right:auto;bottom:28px;max-width:420px}
 }
 @media (min-width:1100px){
   :root{--tw:192px;--th:262px}
@@ -222,6 +228,12 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
 </button>
 
 <nav class="tabs" id="tabs" role="tablist"></nav>
+
+<div class="upd hidden" id="upd" role="status" aria-live="polite">
+  <span>Hay una versión nueva</span>
+  <button type="button" class="btn small primary" id="updGo">Actualizar</button>
+  <button type="button" class="icon-btn" id="updX" aria-label="Cerrar aviso">✕</button>
+</div>
 
 <!-- Añadir -->
 <dialog id="dlgAdd"><div class="sheet">
@@ -280,6 +292,12 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
     </div>
     <p class="note">Tus datos viven solo en este dispositivo. Exporta de vez en cuando: si borras los datos del navegador, se pierden.</p>
     <input type="file" id="file" accept="application/json,.json" class="hidden">
+  </div>
+  <div class="row"><span class="lbl">Aplicación</span>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <button class="btn small" id="chk">Buscar actualizaciones</button>
+      <span class="note" id="ver"></span>
+    </div>
   </div>
 </div></dialog>
 
@@ -597,6 +615,7 @@ function openSettings() {
         [Math.round(games.reduce((s, g) => s + (g.hours || 0), 0)).toLocaleString("es-ES"), "Horas totales"]]
       .map(([n, l]) => h("div", { class: "stat" }, h("b", {}, String(n)), h("span", {}, l))));
   openDlg($("#dlgSet"));
+  getVersion().then(v => { $("#ver").textContent = v ? "Versión " + v : ""; });
 }
 $("#btnSettings").addEventListener("click", openSettings);
 $("#saveKey").addEventListener("click", () => { store.set("rawgKey", $("#apiKey").value.trim()); toast("Clave guardada"); });
@@ -708,13 +727,53 @@ const reorder = (() => {
 $("#q").addEventListener("input", e => { filter = e.target.value; render(); });
 $("#sort").addEventListener("change", e => { sortBy = e.target.value; store.set("sort", sortBy); render(); });
 
+/* actualizaciones de la app */
+let swReg = null, swRefreshing = false, swPending = null;
+function offerUpdate(w) { swPending = w; $("#upd").classList.remove("hidden"); }
+function getVersion() {
+  const c = "serviceWorker" in navigator && navigator.serviceWorker.controller;
+  if (!c) return Promise.resolve(null);
+  return new Promise(res => {
+    const ch = new MessageChannel(); ch.port1.onmessage = e => res(e.data);
+    c.postMessage({ type: "GET_VERSION" }, [ch.port2]); setTimeout(() => res(null), 1500);
+  });
+}
+function initSW() {
+  if (!("serviceWorker" in navigator)) return;
+  navigator.serviceWorker.register("sw.js").then(r => {
+    swReg = r;
+    if (r.waiting && navigator.serviceWorker.controller) offerUpdate(r.waiting);
+    r.addEventListener("updatefound", () => {
+      const w = r.installing; if (!w) return;
+      w.addEventListener("statechange", () => { if (w.state === "installed" && navigator.serviceWorker.controller) offerUpdate(w); });
+    });
+    const check = () => r.update().catch(() => {});
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") check(); });
+    setInterval(check, 30 * 60 * 1000);
+  }).catch(() => {});
+  navigator.serviceWorker.addEventListener("controllerchange", () => { if (swRefreshing) location.reload(); });
+}
+$("#updGo").addEventListener("click", () => {
+  if (document.querySelector("dialog[open]")) { toast("Cierra la ventana abierta y vuelve a pulsar"); return; }
+  const w = swPending || (swReg && swReg.waiting); if (!w) { $("#upd").classList.add("hidden"); return; }
+  swRefreshing = true; w.postMessage({ type: "SKIP_WAITING" });
+});
+$("#updX").addEventListener("click", () => $("#upd").classList.add("hidden"));
+$("#chk").addEventListener("click", async () => {
+  if (!swReg) { toast("Las actualizaciones no están disponibles aquí"); return; }
+  try { await swReg.update(); } catch { toast("No se pudo comprobar. ¿Sin conexión?"); return; }
+  if (swReg.waiting) { offerUpdate(swReg.waiting); $("#dlgSet").close(); }
+  else if (swReg.installing) toast("Descargando la versión nueva…");
+  else toast("Ya tienes la última versión");
+});
+
 /* arranque */
 (async () => {
   try { await DB.open(); games = await DB.all(); }
   catch { toast("No se pudo abrir el almacenamiento local"); }
   history.replaceState({ tab: "home" }, "");
   render();
-  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+  initSW();
   if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
 })();
 </script>
