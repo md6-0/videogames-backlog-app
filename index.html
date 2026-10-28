@@ -80,7 +80,7 @@ main{padding:12px var(--gutter)}
 button.hint{color:var(--accent);padding:2px 0}
 .ph{border:2px dashed var(--accent);border-radius:3px;background:rgba(102,192,244,.08);min-height:60px}
 .list.sortable .card,.list.sortable .tile,#home .tile{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
-.dragging{box-shadow:0 12px 32px rgba(0,0,0,.65)!important;transform:scale(1.03);opacity:.96;transition:none}
+.dragging{box-shadow:0 12px 32px rgba(0,0,0,.65)!important;transform:scale(1.03)!important;opacity:.96;transition:none!important}
 .upd{position:fixed;left:12px;right:88px;bottom:calc(var(--tabs) + env(safe-area-inset-bottom) + 14px);z-index:25;display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--accent);border-radius:6px;padding:8px 8px 8px 12px;font-size:14px;box-shadow:0 6px 18px rgba(0,0,0,.45)}
 .upd span{flex:1;line-height:1.2}
 .upd .btn{flex:none}
@@ -99,6 +99,25 @@ nav.tabs .n{font-variant-numeric:tabular-nums;opacity:.8}
 .fab svg{width:26px;height:26px}
 dialog{border:0;padding:0;background:var(--surface);color:var(--text);width:100%;max-width:560px;margin:auto auto 0;border-radius:20px 20px 0 0;max-height:92dvh}
 dialog::backdrop{background:rgba(0,0,0,.55)}
+/* animaciones: los paneles suben y se funden al abrir y al cerrar (si el navegador no soporta @starting-style, salen sin animar) */
+dialog{opacity:0;transform:translateY(28px);transition:opacity .2s ease,transform .28s cubic-bezier(.2,.8,.2,1),overlay .28s allow-discrete,display .28s allow-discrete}
+dialog[open]{opacity:1;transform:none}
+dialog::backdrop{background:rgba(0,0,0,0);transition:background .28s ease,overlay .28s allow-discrete,display .28s allow-discrete}
+dialog[open]::backdrop{background:rgba(0,0,0,.55)}
+@starting-style{dialog[open]{opacity:0;transform:translateY(28px)}dialog[open]::backdrop{background:rgba(0,0,0,0)}}
+@keyframes toastIn{from{opacity:0;transform:translate(-50%,14px)}to{opacity:1;transform:translate(-50%,0)}}
+@keyframes toastOut{to{opacity:0;transform:translate(-50%,8px)}}
+@keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes pageIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.toast{animation:toastIn .24s cubic-bezier(.2,.8,.2,1)}
+.toast.out{animation:toastOut .2s ease forwards}
+.upd{animation:slideUp .32s cubic-bezier(.2,.8,.2,1)}
+main.enter{animation:pageIn .22s ease-out}
+.tile,.card,.fab,.btn,.mi,.chips button,.seg button,.vt button,nav.tabs button{transition:transform .14s ease,background-color .18s ease,color .18s ease,opacity .18s ease}
+.tile:active,.card:active,.btn:active,.mi:active,.fab:active{transform:scale(.97)}
+.fab:active{transform:scale(.92)}
+.cat .strip{transition:background-color .15s ease,outline-color .15s ease}
+@media (prefers-reduced-motion:reduce){*,::before,::after{animation-duration:.01ms!important;animation-delay:0s!important;transition-duration:.01ms!important}}
 @media (min-width:600px){dialog{margin:auto;border-radius:20px}}
 .sheet{padding:16px 16px calc(20px + env(safe-area-inset-bottom));overflow:auto;max-height:92dvh}
 .sheet h2{margin:0 0 12px;font-size:18px;display:flex;align-items:center;gap:8px}
@@ -384,6 +403,7 @@ function toast(msg) {
   // Los <dialog> modales viven en la capa superior y tapan cualquier cosa del body: el aviso también entra en esa capa.
   if (typeof t.showPopover === "function") { t.setAttribute("popover", "manual"); document.body.append(t); try { t.showPopover(); } catch {} }
   else document.body.append(t);
+  setTimeout(() => t.classList.add("out"), 2200);
   setTimeout(() => t.remove(), 2400);
 }
 const store = {
@@ -485,9 +505,10 @@ function go(id, push = true) {
   if (id === tab) { window.scrollTo(0, 0); return; }
   tab = id; filter = ""; $("#q").value = "";
   if (push) history.pushState({ tab }, "");
-  render(); window.scrollTo(0, 0);
+  render(); window.scrollTo(0, 0); pageEnter();
 }
-addEventListener("popstate", e => { const id = (e.state && e.state.tab) || "home"; if (id !== tab) { tab = id; filter = ""; $("#q").value = ""; render(); } });
+addEventListener("popstate", e => { const id = (e.state && e.state.tab) || "home"; if (id !== tab) { tab = id; filter = ""; $("#q").value = ""; render(); pageEnter(); } });
+function pageEnter() { const m = document.querySelector("main"); m.classList.remove("enter"); void m.offsetWidth; m.classList.add("enter"); }
 
 function tileEl(g, showFav = false) {
   const t = h("button", { class: "tile", "data-id": g.id, onclick: () => openEdit(g.id), "aria-label": g.title });
@@ -506,7 +527,7 @@ function renderHome() {
     const sec = h("section", { class: "cat", "aria-label": catLabel(id) });
     sec.append(h("button", { class: "cat-h", onclick: () => go(id), "aria-label": `Ver ${catLabel(id)}` },
       h("span", { class: "cat-t" }, catLabel(id)), h("span", { class: "cat-n" }, String(items.length)), h("span", { class: "cat-go", "aria-hidden": "true" }, "›")));
-    const strip = h("div", { class: "strip", "data-cat": id }, ...items.slice(0, HOME_MAX).map(tileEl));
+    const strip = h("div", { class: "strip", "data-cat": id }, ...items.slice(0, HOME_MAX).map(g => tileEl(g, id !== "fav")));
     if (!items.length) strip.append(h("p", { class: "cat-empty" }, MSGS[id][1]));
     if (items.length > HOME_MAX) strip.append(h("button", { class: "tile more", onclick: () => go(id) }, `Ver todos (${items.length})`));
     sec.append(strip);
