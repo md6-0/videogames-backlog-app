@@ -81,7 +81,7 @@ button.hint{color:var(--accent);padding:2px 0}
 .ph{border:2px dashed var(--accent);border-radius:3px;background:rgba(102,192,244,.08);min-height:60px}
 .list.sortable .card,.list.sortable .tile,#home .tile{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 .dragging{box-shadow:0 12px 32px rgba(0,0,0,.65)!important;transform:scale(1.03)!important;opacity:.96;transition:none!important}
-.upd{position:fixed;left:12px;right:88px;bottom:calc(var(--tabs) + env(safe-area-inset-bottom) + 14px);z-index:25;display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--accent);border-radius:6px;padding:8px 8px 8px 12px;font-size:14px;box-shadow:0 6px 18px rgba(0,0,0,.45)}
+.upd{position:fixed;top:0;left:0;right:0;z-index:25;display:flex;align-items:center;gap:10px;background:var(--surface2);border-bottom:2px solid var(--accent);padding:calc(10px + env(safe-area-inset-top)) 10px 10px 16px;font-size:15px;box-shadow:0 6px 18px rgba(0,0,0,.45)}
 .upd span{flex:1;line-height:1.2}
 .upd .btn{flex:none}
 .upd .icon-btn{width:32px;height:32px;flex:none;background:none;color:var(--muted);font-size:14px}
@@ -107,11 +107,11 @@ dialog[open]::backdrop{background:rgba(0,0,0,.55)}
 @starting-style{dialog[open]{opacity:0;transform:translateY(28px)}dialog[open]::backdrop{background:rgba(0,0,0,0)}}
 @keyframes toastIn{from{opacity:0;transform:translate(-50%,14px)}to{opacity:1;transform:translate(-50%,0)}}
 @keyframes toastOut{to{opacity:0;transform:translate(-50%,8px)}}
-@keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes slideDown{from{opacity:0;transform:translateY(-100%)}to{opacity:1;transform:none}}
 @keyframes pageIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .toast{animation:toastIn .24s cubic-bezier(.2,.8,.2,1)}
 .toast.out{animation:toastOut .2s ease forwards}
-.upd{animation:slideUp .32s cubic-bezier(.2,.8,.2,1)}
+.upd{animation:slideDown .32s cubic-bezier(.2,.8,.2,1)}
 main.enter{animation:pageIn .22s ease-out}
 .tile,.card,.fab,.btn,.mi,.chips button,.seg button,.vt button,nav.tabs button{transition:transform .14s ease,background-color .18s ease,color .18s ease,opacity .18s ease}
 .tile:active,.card:active,.btn:active,.mi:active,.fab:active{transform:scale(.97)}
@@ -203,7 +203,7 @@ main.enter{animation:pageIn .22s ease-out}
   .res .cover{width:54px;min-width:54px;height:72px}
   .stats{grid-template-columns:repeat(4,1fr)}
   .toast{font-size:15px}
-  .upd{right:112px;font-size:15px}
+  .upd{font-size:16px;padding-left:var(--pad)}
 }
 
 /* ---------- Tablet horizontal / pantallas anchas: barra lateral ---------- */
@@ -214,7 +214,6 @@ main.enter{animation:pageIn .22s ease-out}
   nav.tabs button{flex:none;height:86px}
   .fab{bottom:28px;right:28px}
   .toast{bottom:36px}
-  .upd{left:calc(var(--rail) + 20px);right:auto;bottom:28px;max-width:420px}
 }
 @media (min-width:1100px){
   :root{--tw:192px;--th:262px}
@@ -313,7 +312,13 @@ main.enter{animation:pageIn .22s ease-out}
     <input id="eHours" type="text" inputmode="decimal" autocomplete="off" placeholder="Sin registrar (admite 12,5)"></div>
   <div class="row"><button class="btn" id="eFav" aria-pressed="false" style="width:100%"></button></div>
   <div class="row"><label for="eNotes">Notas</label><textarea id="eNotes" rows="3" placeholder="Opinión, horas, lo que sea…"></textarea></div>
-  <div class="row"><label for="eCoverUrl">URL de portada (opcional)</label><input id="eCoverUrl" inputmode="url" placeholder="https://…"></div>
+  <div class="row"><label for="eCoverUrl">Portada (opcional)</label><input id="eCoverUrl" inputmode="url" placeholder="URL: https://…">
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button type="button" class="btn small" id="eCoverPick">Subir imagen del dispositivo</button>
+      <button type="button" class="btn small" id="eCoverClear">Quitar</button>
+    </div>
+    <input type="file" id="eCoverFile" accept="image/*" class="hidden">
+    <p class="note">Las imágenes subidas se guardan en el dispositivo y siempre salen en las imágenes que exportas. Una URL de otra web puede no salir si esa web no lo permite.</p></div>
   <div class="btns">
     <button class="btn danger" id="eDel">Eliminar</button>
     <button class="btn primary" id="eSave">Guardar</button>
@@ -410,7 +415,11 @@ const store = {
   get(k) { try { return localStorage.getItem(k); } catch { return null; } },
   set(k, v) { try { localStorage.setItem(k, v); } catch {} }
 };
-const safeUrl = u => { try { const x = new URL(u); return /^https?:$/.test(x.protocol) ? x.href : ""; } catch { return ""; } };
+const DATA_IMG = /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/]+=*$/;
+const safeUrl = u => {
+  if (typeof u === "string" && u.startsWith("data:")) return u.length < 3e6 && DATA_IMG.test(u) ? u : "";   // imagen subida desde el dispositivo
+  try { const x = new URL(u); return /^https?:$/.test(x.protocol) ? x.href : ""; } catch { return ""; }
+};
 
 /* ---------- base de datos (IndexedDB) ---------- */
 const DB = (() => {
@@ -633,7 +642,7 @@ function openEdit(id, isNew = false) {
   editing = { ...g, _new: isNew };
   $("#editHead").textContent = isNew ? "Nuevo juego" : "Editar juego";
   $("#eTitle").value = g.title; $("#eYear").value = g.year || ""; editing.plats = splitPlats(g.platforms); $("#ePlatOther").value = ""; paintPlats();
-  $("#eNotes").value = g.notes || ""; $("#eCoverUrl").value = g.cover || "";
+  $("#eNotes").value = g.notes || ""; $("#eCoverUrl").value = (g.cover || "").startsWith("data:") ? "" : (g.cover || ""); $("#eCoverUrl").placeholder = (g.cover || "").startsWith("data:") ? "Imagen subida desde el dispositivo" : "URL: https://…";
   $("#eHours").value = g.hours ?? "";
   const c = coverEl(g); $("#eCover").replaceWith(c); c.id = "eCover";
   setSeg($("#eStatus"), g.status, v => editing.status = v);
@@ -643,6 +652,20 @@ function openEdit(id, isNew = false) {
 $("#eRange").addEventListener("input", e => { editing.rating = parseFloat(e.target.value); paintRating(); });
 $("#eClear").addEventListener("click", () => { editing.rating = null; paintRating(); });
 $("#eFav").addEventListener("click", () => { editing.favorite = !editing.favorite; paintFav(); });
+function paintCover() { const c = coverEl(editing); $("#eCover").replaceWith(c); c.id = "eCover"; }
+$("#eCoverPick").addEventListener("click", () => $("#eCoverFile").click());
+$("#eCoverClear").addEventListener("click", () => { editing.cover = ""; $("#eCoverUrl").value = ""; $("#eCoverUrl").placeholder = "URL: https://…"; paintCover(); });
+$("#eCoverFile").addEventListener("change", async e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  try {
+    const bmp = await createImageBitmap(f), k = Math.min(1, 600 / Math.max(bmp.width, bmp.height));
+    const cv = document.createElement("canvas"); cv.width = Math.max(1, Math.round(bmp.width * k)); cv.height = Math.max(1, Math.round(bmp.height * k));
+    cv.getContext("2d").drawImage(bmp, 0, 0, cv.width, cv.height); bmp.close && bmp.close();
+    const url = cv.toDataURL("image/jpeg", 0.85);
+    if (!safeUrl(url)) throw new Error();
+    editing.cover = url; $("#eCoverUrl").value = ""; $("#eCoverUrl").placeholder = "Imagen subida desde el dispositivo"; paintCover();
+  } catch { toast("No se pudo leer esa imagen"); }
+});
 $("#eCoverUrl").addEventListener("change", e => { editing.cover = safeUrl(e.target.value); const c = coverEl(editing); $("#eCover").replaceWith(c); c.id = "eCover"; });
 $("#eSave").addEventListener("click", async () => {
   const title = $("#eTitle").value.trim();
@@ -714,7 +737,7 @@ async function buildImages() {
   IMG.urls.forEach(u => URL.revokeObjectURL(u)); IMG.urls = []; IMG.blobs = [];
   $("#imgPrev").replaceChildren(); $("#imgNote").textContent = "Generando…";
   await loadAllCovers(items); if (seq !== IMG.seq) return;
-  const failed = items.filter(g => safeUrl(g.cover) && !IMG.bmp.get(g.id)).length;
+  const failedList = items.filter(g => safeUrl(g.cover) && !IMG.bmp.get(g.id)), failed = failedList.length;
   const W = 1080, P = 40, HEAD = 170, MAXH = 12000, cols = 4, gap = 16;
   const cw = Math.floor((W - 2 * P - gap * (cols - 1)) / cols), ch = Math.round(cw * 1.4);
   const rowH = grid ? ch : 200, step = rowH + gap, perRow = grid ? cols : 1;
@@ -768,7 +791,7 @@ async function buildImages() {
     $("#imgPrev").append(h("img", { src: u, alt: `${IMG.label}, imagen ${p + 1} de ${pages.length}` }));
   }
   $("#imgNote").textContent = `${items.length} ${items.length === 1 ? "juego" : "juegos"}, ${pages.length} ${pages.length === 1 ? "imagen" : "imágenes"}. Sigue el orden y el filtro actuales.` +
-    (failed ? ` ${failed} ${failed === 1 ? "portada no se pudo incluir" : "portadas no se pudieron incluir"} (se dibuja la inicial del título).` : "");
+    (failed ? ` Sin portada en la imagen (la web de origen no lo permite o falló la descarga): ${failedList.slice(0, 5).map(g => g.title).join(", ")}${failed > 5 ? ` y ${failed - 5} más` : ""}. En la ficha puedes subir la imagen desde el dispositivo.` : "");
 }
 function imgFiles() {
   const slug = IMG.label.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-");
