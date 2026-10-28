@@ -139,7 +139,7 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
 .stat{background:var(--surface2);border-radius:12px;padding:10px;text-align:center}
 .stat b{display:block;font-size:22px}
 .stat span{font-size:12px;color:var(--muted)}
-.toast{inset:auto;margin:0;border:0;overflow:visible;width:auto;height:auto;position:fixed;left:50%;bottom:calc(var(--tabs) + env(safe-area-inset-bottom) + 84px);transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;z-index:20;max-width:90%}
+.toast{inset:auto;margin:0;border:0;overflow:visible;width:auto;height:auto;position:fixed;left:50%;bottom:calc(var(--tabs) + env(safe-area-inset-bottom) + 84px);transform:translateX(-50%);background:var(--text);color:var(--bg);box-sizing:border-box;min-width:min(88vw,360px);max-width:92vw;text-align:center;padding:14px 24px;border-radius:999px;font-size:15px;z-index:20}
 .hidden{display:none!important}
 
 /* ---------- Tablet: 700px+ ---------- */
@@ -298,6 +298,16 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
   <div class="btns">
     <button class="btn danger" id="eDel">Eliminar</button>
     <button class="btn primary" id="eSave">Guardar</button>
+  </div>
+</div></dialog>
+
+<!-- Confirmación -->
+<dialog id="dlgAsk"><div class="sheet">
+  <h2><span id="askTitle">Confirmar</span><button class="icon-btn" data-close aria-label="Cerrar">✕</button></h2>
+  <p id="askText" style="margin:0 0 4px"></p>
+  <div class="btns">
+    <button class="btn" id="askNo">Cancelar</button>
+    <button class="btn primary" id="askYes">Aceptar</button>
   </div>
 </div></dialog>
 
@@ -552,6 +562,20 @@ document.addEventListener("click", e => { const c = e.target.closest("[data-clos
 for (const d of document.querySelectorAll("dialog"))
   d.addEventListener("click", e => { if (e.target === d) d.close(); });
 
+/* confirmación en un panel propio (en lugar del confirm() del navegador) */
+function ask({ title, text, ok = "Aceptar", danger = false }) {
+  return new Promise(resolve => {
+    const d = $("#dlgAsk");
+    $("#askTitle").textContent = title; $("#askText").textContent = text;
+    const yes = $("#askYes"); yes.textContent = ok; yes.className = "btn " + (danger ? "danger" : "primary");
+    d.returnValue = "";
+    d.addEventListener("close", () => resolve(d.returnValue === "ok"), { once: true });
+    openDlg(d);
+  });
+}
+$("#askYes").addEventListener("click", () => { const d = $("#dlgAsk"); d.returnValue = "ok"; d.close(); });
+$("#askNo").addEventListener("click", () => $("#dlgAsk").close());
+
 /* editar */
 function setSeg(container, value, onPick) {
   container.replaceChildren(...STATUS.map(s =>
@@ -618,7 +642,7 @@ $("#eSave").addEventListener("click", async () => {
   $("#dlgEdit").close(); if (tab !== "home" && tab !== "fav") { tab = g.status; history.replaceState({ tab }, ""); } render(); toast("Guardado");
 });
 $("#eDel").addEventListener("click", async () => {
-  if (!confirm(`¿Eliminar "${editing.title}"?`)) return;
+  if (!await ask({ title: "Eliminar juego", text: `¿Eliminar "${editing.title}"? No se puede deshacer.`, ok: "Eliminar", danger: true })) return;
   await DB.del(editing.id); games = games.filter(x => x.id !== editing.id);
   $("#dlgEdit").close(); render(); toast("Eliminado");
 });
@@ -847,7 +871,7 @@ $("#file").addEventListener("change", async e => {
       rating: typeof g.rating === "number" && g.rating >= 0 && g.rating <= 10 ? g.rating : null,
       hours: g.hours == null ? null : cleanHours(g.hours),
       favorite: !!g.favorite, favRank: Number.isFinite(g.favRank) ? g.favRank : null, rank: Number.isFinite(g.rank) ? g.rank : null, notes: String(g.notes || ""), added: g.added || Date.now(), updated: g.updated || Date.now(), finished: g.finished || null }));
-    if (!confirm(`Se reemplazarán tus ${games.length} juegos actuales por ${clean.length} del archivo. ¿Continuar?`)) return;
+    if (!await ask({ title: "Importar copia", text: `Se reemplazarán tus ${games.length} juegos actuales por ${clean.length} del archivo. ¿Continuar?`, ok: "Reemplazar", danger: true })) return;
     await DB.replaceAll(clean); games = clean; $("#dlgSet").close(); render(); toast("Importados " + clean.length);
   } catch { toast("Archivo no válido"); }
 });
@@ -876,7 +900,7 @@ function openMenu(id, ctx) {
     inFav
       ? item("Quitar de Favoritos", () => save("Quitado de Favoritos", () => { g.favorite = false; g.favRank = null; }), "danger")
       : item("Eliminar juego", async () => {
-          if (!confirm(`¿Eliminar "${g.title}"?`)) return;
+          if (!await ask({ title: "Eliminar juego", text: `¿Eliminar "${g.title}"? No se puede deshacer.`, ok: "Eliminar", danger: true })) return;
           await DB.del(g.id); games = games.filter(x => x.id !== g.id); render(); toast("Eliminado");
         }, "danger")
   ];
