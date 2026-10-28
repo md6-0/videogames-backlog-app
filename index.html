@@ -72,6 +72,7 @@ main{padding:12px var(--gutter)}
 .vt button svg{width:18px;height:18px}
 .vt button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink)}
 .list.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:10px}
+.list.cols{display:grid!important;grid-template-columns:repeat(var(--cols),minmax(0,1fr))!important}
 .list.grid .tile{flex:none;width:100%;height:auto;aspect-ratio:3/4.1}
 .tile .hrt{position:absolute;top:5px;left:7px;font-size:16px;line-height:1;color:var(--accent);text-shadow:0 1px 3px rgba(0,0,0,.7)}
 .hint{color:var(--muted);font-size:13px;margin:0 0 2px;text-align:left}
@@ -325,6 +326,14 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
 <dialog id="dlgSet"><div class="sheet">
   <h2><span>Ajustes</span><button class="icon-btn" data-close aria-label="Cerrar">✕</button></h2>
   <div class="stats" id="stats"></div>
+  <div class="row"><span class="lbl">Columnas (páginas de categoría)</span>
+    <div style="display:flex;gap:10px">
+      <div style="flex:1"><label for="colsList" class="note">En lista</label>
+        <select id="colsList"><option value="0">Automático</option><option>1</option><option>2</option><option>3</option><option>4</option></select></div>
+      <div style="flex:1"><label for="colsGrid" class="note">En cuadrícula</label>
+        <select id="colsGrid"><option value="0">Automático</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option></select></div>
+    </div>
+    <p class="note">«Automático» se adapta al ancho de la pantalla. Inicio no cambia: sus filas se deslizan.</p></div>
   <div class="row"><label for="apiKey">Clave API de RAWG</label>
     <input id="apiKey" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Pega aquí tu clave">
     <p class="note">Gratis en <a href="https://rawg.io/apidocs" target="_blank" rel="noopener">rawg.io/apidocs</a>. Se guarda solo en este dispositivo.</p>
@@ -430,6 +439,8 @@ function appendRank(g, key, list) {
   g[key] = r.length ? Math.max(...r) + 1 : null;
 }
 const byRank = key => (x, y) => (x[key] ?? 1e9) - (y[key] ?? 1e9) || y.updated - x.updated;
+const COLS_KEY = { list: "colsList", grid: "colsGrid" };
+const colsOf = m => { const v = parseInt(store.get(COLS_KEY[m]), 10); return v >= 1 && v <= 8 ? v : 0; };   // 0 = automático
 function visible() {
   let a = inCat(tab);
   const f = filter.trim().toLowerCase();
@@ -508,7 +519,9 @@ function render() {
   $("#sort").value = effectiveSort();
   const list = $("#list"); list.replaceChildren();
   const canSort = effectiveSort() === "custom" && !filter.trim();
-  list.className = "list" + (view === "grid" ? " grid" : "") + (canSort ? " sortable" : "");
+  const nc = colsOf(view);
+  list.className = "list" + (view === "grid" ? " grid" : "") + (canSort ? " sortable" : "") + (nc ? " cols" : "");
+  if (nc) list.style.setProperty("--cols", nc); else list.style.removeProperty("--cols");
   const items = visible();
   if (!items.length) {
     const msgs = MSGS[tab];
@@ -797,7 +810,9 @@ async function search(q) {
 }
 
 /* ajustes */
+for (const m of ["list", "grid"]) $("#" + COLS_KEY[m]).addEventListener("change", e => { store.set(COLS_KEY[m], e.target.value); render(); });
 function openSettings() {
+  for (const m of ["list", "grid"]) $("#" + COLS_KEY[m]).value = String(colsOf(m));
   $("#apiKey").value = KEY();
   const done = games.filter(g => g.status === "played"), rated = games.filter(g => g.rating != null);
   const avg = rated.length ? (rated.reduce((s, g) => s + g.rating, 0) / rated.length) : null;
