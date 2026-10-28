@@ -494,6 +494,8 @@ const colsOf = m => { const v = parseInt(store.get(COLS_KEY[m]), 10); return v >
 // Fecha en la que lo jugaste: playedY (año) y playedM (1-12, opcional). Sin fecha → siempre al final al ordenar.
 const playedKey = g => g.playedY ? g.playedY * 12 + (g.playedM ? g.playedM - 1 : 0) : null;
 const MONTHS = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+// Al pasar un juego a Jugados sin fecha, se anota el mes y año actuales.
+const stampPlayed = g => { if (!g.playedY) { const d = new Date(); g.playedY = d.getFullYear(); g.playedM = d.getMonth() + 1; } };
 const playedLabel = g => !g.playedY ? "" : (g.playedM ? MONTHS[g.playedM - 1].slice(0, 3) + " " : "") + g.playedY;
 function visible() {
   let a = inCat(tab);
@@ -660,7 +662,7 @@ function openEdit(id, isNew = false) {
   $("#eHours").value = g.hours ?? "";
   fillPlayed(g.playedY, g.playedM);
   const c = coverEl(g); $("#eCover").replaceWith(c); c.id = "eCover";
-  setSeg($("#eStatus"), g.status, v => editing.status = v);
+  setSeg($("#eStatus"), g.status, v => { const was = editing.status; editing.status = v; if (v === "played" && was !== "played" && !$("#ePlayedY").value) { const d = new Date(); fillPlayed(d.getFullYear(), d.getMonth() + 1); } });
   paintRating(); paintFav();
   openDlg($("#dlgEdit"));
 }
@@ -702,6 +704,7 @@ $("#eSave").addEventListener("click", async () => {
     notes: $("#eNotes").value.trim(), cover: safeUrl($("#eCoverUrl").value) || editing.cover || "", updated: Date.now() };
   delete g._new; delete g.plats;
   const orig = games.find(x => x.id === g.id);
+  if (orig && orig.status !== g.status && g.status === "played") stampPlayed(g);
   if (orig && orig.status !== g.status) { g.rank = null; appendRank(g, "rank", games.filter(x => x.status === g.status)); }
   if (orig && g.favorite !== orig.favorite) { g.favRank = null; if (g.favorite) appendRank(g, "favRank", games.filter(x => x.favorite)); }
   if (g.status === "played" && !g.finished) g.finished = Date.now();
@@ -856,6 +859,7 @@ function blank(over = {}) {
 }
 async function addGame(over) {
   const g = blank(over);
+  if (g.status === "played") stampPlayed(g);
   appendRank(g, "rank", games.filter(x => x.status === g.status));
   if (g.favorite) appendRank(g, "favRank", games.filter(x => x.favorite));
   await DB.put(g); games.push(g);
@@ -964,7 +968,7 @@ function openMenu(id, ctx) {
     }))]),
     h("span", { class: "lbl" }, "Mover a"),
     h("div", { class: "mv" }, others.map(st => item(st.label, () => save("Movido a " + st.label, () => {
-      g.status = st.id; g.updated = Date.now(); if (st.id === "played" && !g.finished) g.finished = Date.now();
+      g.status = st.id; g.updated = Date.now(); if (st.id === "played") { if (!g.finished) g.finished = Date.now(); stampPlayed(g); }
       g.rank = null; appendRank(g, "rank", games.filter(x => x.status === st.id));
     })))),
     inFav
@@ -1088,7 +1092,9 @@ const homeDrag = (() => {
     if (!st) return;
     clearTimeout(st.timer); cancelAnimationFrame(st.raf);
     window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); window.removeEventListener("pointercancel", cancel);
-    document.body.classList.remove("dnd"); mark(null); st = null;
+    document.body.classList.remove("dnd"); mark(null);
+    for (const sp of box.querySelectorAll(".strip")) sp.style.minHeight = "";
+    st = null;
   }
   function activate() {
     if (!st || st.active) return;
@@ -1099,12 +1105,15 @@ const homeDrag = (() => {
     st.ox = st.x - r.left; st.oy = st.y - r.top; st.css = el.getAttribute("style") || "";
     Object.assign(el.style, { position: "fixed", left: r.left + "px", top: r.top + "px", width: r.width + "px", height: r.height + "px", margin: "0", zIndex: "30", flex: "none" });
     el.classList.add("dragging"); document.body.classList.add("dnd");
-    st.over = el.closest(".strip"); mark(el.closest(".cat"));
+    lockHeights(); st.over = el.closest(".strip"); mark(el.closest(".cat"));
     if (navigator.vibrate) try { navigator.vibrate(12); } catch {}
     st.raf = requestAnimationFrame(tick);
   }
+  // Durante el arrastre las filas solo pueden crecer: si el hueco se va de una fila con un único juego, las de debajo no suben bajo el dedo.
+  function lockHeights() { for (const sp of box.querySelectorAll(".strip")) sp.style.minHeight = Math.max(parseFloat(sp.style.minHeight) || 0, sp.offsetHeight) + "px"; }
   function append(strip) { const more = strip.querySelector(".tile.more"); if (more) more.before(st.ph); else strip.append(st.ph); }
-  function place() {
+  function place() { placeAt(); lockHeights(); }
+  function placeAt() {
     const els = document.elementsFromPoint(st.x, st.y).filter(n => n !== st.el && !st.el.contains(n)); // ignora la propia tarjeta flotante
     const cat = els.map(n => n.closest && n.closest(".cat")).find(Boolean);
     if (!cat) { st.over = null; mark(null); return; }
@@ -1140,7 +1149,7 @@ const homeDrag = (() => {
     const g = games.find(x => x.id === id); if (!g) return null;
     let msg = null;
     if (catId === "fav") { if (!g.favorite) { g.favorite = true; msg = "Añadido a Favoritos"; } }
-    else if (g.status !== catId) { g.status = catId; g.updated = Date.now(); if (catId === "played" && !g.finished) g.finished = Date.now(); msg = "Movido a " + catLabel(catId); }
+    else if (g.status !== catId) { g.status = catId; g.updated = Date.now(); if (catId === "played") { if (!g.finished) g.finished = Date.now(); stampPlayed(g); } msg = "Movido a " + catLabel(catId); }
     const key = rankKey(catId);
     const list = inCat(catId).filter(x => x.id !== g.id).sort(byRank(key));
     list.splice(Math.min(Math.max(idx, 0), list.length), 0, g);
