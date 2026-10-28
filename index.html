@@ -478,10 +478,10 @@ const CATS = ["backlog", "playing", "played", "fav"];
 const HOME_MAX = 12;
 const catLabel = id => id === "fav" ? "Favoritos" : STATUS.find(s => s.id === id).label;
 const inCat = id => id === "fav" ? games.filter(g => g.favorite) : games.filter(g => g.status === id);
-// Opciones de orden. En Backlog no tienen sentido la nota, las horas ni la fecha de jugado (aún no se ha jugado).
+// Opciones de orden. Backlog: aún no se ha jugado (sin nota, horas ni fecha). Jugando: sin terminar (sin nota ni fecha de jugado; las horas sí).
 const SORTS = [["custom", "Mi orden"], ["recent", "Recientes"], ["rating", "Mejor nota"], ["title", "A–Z"], ["year", "Año"], ["hours", "Más horas"], ["played", "Jugado: reciente"], ["playedAsc", "Jugado: antiguo"]];
-const NOT_IN_BACKLOG = ["rating", "hours", "played", "playedAsc"];
-const sortsFor = t => SORTS.filter(([v]) => !(t === "backlog" && NOT_IN_BACKLOG.includes(v)));
+const HIDDEN_SORTS = { backlog: ["rating", "hours", "played", "playedAsc"], playing: ["rating", "played", "playedAsc"] };
+const sortsFor = t => SORTS.filter(([v]) => !(HIDDEN_SORTS[t] || []).includes(v));
 // Si el orden guardado no existe en esta categoría se usa "Recientes" sin borrarlo: al volver a otra categoría sigue activo.
 const effectiveSort = () => sortsFor(tab).some(([v]) => v === sortBy) ? sortBy : "recent";
 const rankKey = id => id === "fav" ? "favRank" : "rank";   // posición dentro de su estado / dentro de Favoritos
