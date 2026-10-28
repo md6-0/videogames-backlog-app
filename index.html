@@ -253,16 +253,7 @@ main.enter{animation:pageIn .22s ease-out}
   </div>
   <div class="tools" id="tools">
     <input id="q" type="search" placeholder="Filtrar mi lista…" aria-label="Filtrar mi lista" autocomplete="off">
-    <select id="sort" aria-label="Ordenar">
-      <option value="custom">Mi orden</option>
-      <option value="recent">Recientes</option>
-      <option value="rating">Mejor nota</option>
-      <option value="title">A–Z</option>
-      <option value="year">Año</option>
-      <option value="hours">Más horas</option>
-      <option value="played">Jugado: reciente</option>
-      <option value="playedAsc">Jugado: antiguo</option>
-    </select>
+    <select id="sort" aria-label="Ordenar"></select>
   </div>
 </header>
 
@@ -487,7 +478,12 @@ const CATS = ["backlog", "playing", "played", "fav"];
 const HOME_MAX = 12;
 const catLabel = id => id === "fav" ? "Favoritos" : STATUS.find(s => s.id === id).label;
 const inCat = id => id === "fav" ? games.filter(g => g.favorite) : games.filter(g => g.status === id);
-const effectiveSort = () => sortBy;
+// Opciones de orden. En Backlog no tienen sentido la nota, las horas ni la fecha de jugado (aún no se ha jugado).
+const SORTS = [["custom", "Mi orden"], ["recent", "Recientes"], ["rating", "Mejor nota"], ["title", "A–Z"], ["year", "Año"], ["hours", "Más horas"], ["played", "Jugado: reciente"], ["playedAsc", "Jugado: antiguo"]];
+const NOT_IN_BACKLOG = ["rating", "hours", "played", "playedAsc"];
+const sortsFor = t => SORTS.filter(([v]) => !(t === "backlog" && NOT_IN_BACKLOG.includes(v)));
+// Si el orden guardado no existe en esta categoría se usa "Recientes" sin borrarlo: al volver a otra categoría sigue activo.
+const effectiveSort = () => sortsFor(tab).some(([v]) => v === sortBy) ? sortBy : "recent";
 const rankKey = id => id === "fav" ? "favRank" : "rank";   // posición dentro de su estado / dentro de Favoritos
 // Si la categoría ya tiene un orden elegido, el juego que entra se coloca al final; si no, queda por recientes.
 function appendRank(g, key, list) {
@@ -581,6 +577,7 @@ function render() {
   $("#vt").classList.toggle("hidden", home); $("#btnImg").classList.toggle("hidden", home);
   for (const b of document.querySelectorAll("#vt button")) b.setAttribute("aria-pressed", String(b.dataset.v === view));
   if (home) { renderHome(); return; }
+  $("#sort").replaceChildren(...sortsFor(tab).map(([v, l]) => h("option", { value: v }, l)));
   $("#sort").value = effectiveSort();
   const list = $("#list"); list.replaceChildren();
   const canSort = effectiveSort() === "custom" && !filter.trim();
