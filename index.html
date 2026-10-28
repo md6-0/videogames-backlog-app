@@ -107,6 +107,8 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
 .chips button{padding:7px 12px;border-radius:999px;background:var(--surface2);color:var(--muted);font-size:14px}
 .chips button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);font-weight:650}
+.imgprev{max-height:52dvh;overflow:auto;border-radius:10px;background:var(--bg)}
+.imgprev img{display:block;width:100%;height:auto;margin-bottom:6px}
 .seg{display:flex;background:var(--surface2);border-radius:10px;padding:3px;gap:3px}
 .seg button{flex:1;padding:9px 4px;border-radius:8px;font-size:14px;color:var(--muted)}
 .seg button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink);font-weight:650}
@@ -206,6 +208,9 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
 <header>
   <div class="top">
     <h1 id="ttl">Mi Biblioteca</h1>
+    <button class="icon-btn hidden" id="btnImg" aria-label="Crear imagen de la lista" title="Crear imagen de la lista">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="M21 16l-5-5-8 8"/></svg>
+    </button>
     <div class="vt hidden" id="vt" role="group" aria-label="Modo de vista">
       <button type="button" data-v="list" aria-label="Lista" title="Lista"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
       <button type="button" data-v="grid" aria-label="Cuadrícula" title="Cuadrícula"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="4" y="4" width="6.5" height="6.5"/><rect x="13.5" y="4" width="6.5" height="6.5"/><rect x="4" y="13.5" width="6.5" height="6.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5"/></svg></button>
@@ -286,6 +291,21 @@ dialog::backdrop{background:rgba(0,0,0,.55)}
   <div class="btns">
     <button class="btn danger" id="eDel">Eliminar</button>
     <button class="btn primary" id="eSave">Guardar</button>
+  </div>
+</div></dialog>
+
+<!-- Imagen de la lista -->
+<dialog id="dlgImg"><div class="sheet">
+  <h2><span id="imgHead">Imagen</span><button class="icon-btn" data-close aria-label="Cerrar">✕</button></h2>
+  <div class="seg" id="imgMode">
+    <button type="button" data-m="grid">Cuadrícula</button>
+    <button type="button" data-m="list">Lista</button>
+  </div>
+  <p class="note" id="imgNote" style="margin:10px 0"></p>
+  <div id="imgPrev" class="imgprev"></div>
+  <div class="btns">
+    <button class="btn hidden" id="imgShare">Compartir</button>
+    <button class="btn primary" id="imgDl">Descargar</button>
   </div>
 </div></dialog>
 
@@ -470,7 +490,7 @@ function render() {
   const home = tab === "home";
   $("#home").classList.toggle("hidden", !home); $("#list").classList.toggle("hidden", home); $("#tools").classList.toggle("hidden", home);
   $("#ttl").replaceChildren(home ? "Mi Biblioteca" : catLabel(tab), home ? "" : h("small", {}, " " + inCat(tab).length));
-  $("#vt").classList.toggle("hidden", home);
+  $("#vt").classList.toggle("hidden", home); $("#btnImg").classList.toggle("hidden", home);
   for (const b of document.querySelectorAll("#vt button")) b.setAttribute("aria-pressed", String(b.dataset.v === view));
   if (home) { renderHome(); return; }
   $("#sort").value = effectiveSort();
@@ -573,6 +593,136 @@ $("#eDel").addEventListener("click", async () => {
   if (!confirm(`¿Eliminar "${editing.title}"?`)) return;
   await DB.del(editing.id); games = games.filter(x => x.id !== editing.id);
   $("#dlgEdit").close(); render(); toast("Eliminado");
+});
+
+/* ---------- imagen de la lista ---------- */
+const IMG = { mode: "grid", items: [], label: "", blobs: [], urls: [], bmp: new Map(), seq: 0, names: [] };
+const cssv = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const ratingHex = r => cssv(r >= 8 ? "--good" : r >= 5 ? "--mid" : "--bad");
+function rrect(c, x, y, w, hh, r) { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + hh, r); c.arcTo(x + w, y + hh, x, y + hh, r); c.arcTo(x, y + hh, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); }
+async function loadCover(g) {
+  const u = safeUrl(g.cover); if (!u) return null;
+  if (IMG.bmp.has(g.id)) return IMG.bmp.get(g.id);
+  let b = null;
+  try {
+    const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 10000);
+    const r = await fetch(u, { mode: "cors", cache: "no-cache", signal: ctl.signal }); clearTimeout(t);
+    if (r.ok) b = await createImageBitmap(await r.blob());
+  } catch { b = null; }
+  IMG.bmp.set(g.id, b); return b;
+}
+async function loadAllCovers(items) {
+  let i = 0;
+  await Promise.all(Array.from({ length: 6 }, async () => { while (i < items.length) await loadCover(items[i++]); }));
+}
+function fitText(c, t, maxW) { if (c.measureText(t).width <= maxW) return t; while (t.length > 1 && c.measureText(t + "…").width > maxW) t = t.slice(0, -1); return t.trimEnd() + "…"; }
+function wrapText(c, t, maxW, maxLines) {
+  const words = String(t).split(/\s+/).filter(Boolean), lines = []; let cur = "", i = 0;
+  for (; i < words.length; i++) {
+    const test = cur ? cur + " " + words[i] : words[i];
+    if (!cur || c.measureText(test).width <= maxW) cur = test;
+    else { if (lines.length === maxLines - 1) break; lines.push(cur); cur = words[i]; }
+  }
+  lines.push(i < words.length ? cur + "…" : cur);
+  return lines.map(l => fitText(c, l, maxW));
+}
+function drawCoverImg(c, bmp, g, x, y, w, hh, r) {
+  c.save(); rrect(c, x, y, w, hh, r); c.clip();
+  if (bmp) { const k = Math.max(w / bmp.width, hh / bmp.height), dw = bmp.width * k, dh = bmp.height * k; c.drawImage(bmp, x + (w - dw) / 2, y + (hh - dh) / 2, dw, dh); }
+  else { c.fillStyle = cssv("--surface2"); c.fillRect(x, y, w, hh); c.fillStyle = cssv("--muted"); c.font = `700 ${Math.round(w * .4)}px system-ui, sans-serif`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText((g.title || "?").trim().charAt(0).toUpperCase(), x + w / 2, y + hh / 2); }
+  c.restore();
+}
+function chip(c, text, color, x, y, w, hh, fs) {
+  rrect(c, x, y, w, hh, 8); c.fillStyle = color; c.fill();
+  c.fillStyle = "#0b141d"; c.font = `800 ${fs}px system-ui, sans-serif`; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(text, x + w / 2, y + hh / 2 + 1);
+}
+async function buildImages() {
+  const seq = ++IMG.seq, items = IMG.items, grid = IMG.mode === "grid";
+  IMG.urls.forEach(u => URL.revokeObjectURL(u)); IMG.urls = []; IMG.blobs = [];
+  $("#imgPrev").replaceChildren(); $("#imgNote").textContent = "Generando…";
+  await loadAllCovers(items); if (seq !== IMG.seq) return;
+  const failed = items.filter(g => safeUrl(g.cover) && !IMG.bmp.get(g.id)).length;
+  const W = 1080, P = 40, HEAD = 170, MAXH = 12000, cols = 4, gap = 16;
+  const cw = Math.floor((W - 2 * P - gap * (cols - 1)) / cols), ch = Math.round(cw * 1.4);
+  const rowH = grid ? ch : 200, step = rowH + gap, perRow = grid ? cols : 1;
+  const perPage = Math.max(1, Math.floor((MAXH - HEAD - P + gap) / step)) * perRow;
+  const pages = []; for (let i = 0; i < items.length; i += perPage) pages.push(items.slice(i, i + perPage));
+  const col = { bg: cssv("--bg"), surf: cssv("--surface"), text: cssv("--text"), muted: cssv("--muted"), accent: cssv("--accent") };
+  const date = new Date().toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" });
+  for (let p = 0; p < pages.length; p++) {
+    const pg = pages[p], rows = Math.ceil(pg.length / perRow);
+    const cv = document.createElement("canvas"); cv.width = W; cv.height = HEAD + rows * step - gap + P;
+    const c = cv.getContext("2d");
+    c.fillStyle = col.bg; c.fillRect(0, 0, W, cv.height);
+    c.fillStyle = col.accent; c.fillRect(P, 52, 8, 76);
+    c.textAlign = "left"; c.textBaseline = "alphabetic";
+    c.fillStyle = col.text; c.font = "800 60px system-ui, sans-serif"; c.fillText(IMG.label, P + 28, 100);
+    c.fillStyle = col.muted; c.font = "500 28px system-ui, sans-serif";
+    c.fillText(`${items.length} ${items.length === 1 ? "juego" : "juegos"} · ${date}` + (pages.length > 1 ? ` · ${p + 1}/${pages.length}` : ""), P + 28, 134);
+    pg.forEach((g, i) => {
+      const bmp = IMG.bmp.get(g.id) || null;
+      if (grid) {
+        const x = P + (i % cols) * (cw + gap), y = HEAD + Math.floor(i / cols) * step;
+        drawCoverImg(c, bmp, g, x, y, cw, ch, 10);
+        c.save(); rrect(c, x, y, cw, ch, 10); c.clip();
+        const gr = c.createLinearGradient(0, y + ch * .5, 0, y + ch); gr.addColorStop(0, "rgba(0,0,0,0)"); gr.addColorStop(1, "rgba(0,0,0,.9)");
+        c.fillStyle = gr; c.fillRect(x, y + ch * .5, cw, ch * .5); c.restore();
+        c.fillStyle = "#fff"; c.font = "700 24px system-ui, sans-serif"; c.textAlign = "left"; c.textBaseline = "alphabetic";
+        const ls = wrapText(c, g.title, cw - 24, 2);
+        ls.forEach((l, k) => c.fillText(l, x + 12, y + ch - 14 - (ls.length - 1 - k) * 28));
+        if (g.rating != null) chip(c, fmtRating(g.rating), ratingHex(g.rating), x + cw - 62, y + 8, 54, 36, 22);
+      } else {
+        const y = HEAD + i * step;
+        rrect(c, P, y, W - 2 * P, rowH, 14); c.fillStyle = col.surf; c.fill();
+        drawCoverImg(c, bmp, g, P + 16, y + 16, 120, 168, 8);
+        const tx = P + 160, right = W - P - 16 - (g.rating != null ? 104 : 0), mw = right - tx;
+        c.textAlign = "left"; c.textBaseline = "alphabetic";
+        c.fillStyle = col.text; c.font = "700 34px system-ui, sans-serif";
+        const ls = wrapText(c, g.title, mw, 2); ls.forEach((l, k) => c.fillText(l, tx, y + 56 + k * 40));
+        let cy = y + 56 + (ls.length - 1) * 40 + 42;
+        c.fillStyle = col.muted; c.font = "500 26px system-ui, sans-serif";
+        const a = [g.year, g.hours != null ? fmtHours(g.hours) : "", tab === "fav" ? catLabel(g.status) : ""].filter(Boolean).join(" · ");
+        if (a) { c.fillText(fitText(c, a, mw), tx, cy); cy += 36; }
+        if (g.platforms) c.fillText(fitText(c, g.platforms, mw), tx, cy);
+        if (g.rating != null) chip(c, fmtRating(g.rating), ratingHex(g.rating), W - P - 16 - 88, y + 16, 88, 56, 32);
+      }
+    });
+    const blob = await new Promise(r => cv.toBlob(r, "image/png")); cv.width = cv.height = 0;
+    if (seq !== IMG.seq) return;
+    if (!blob) { $("#imgNote").textContent = "No se pudo generar la imagen en este dispositivo."; return; }
+    IMG.blobs.push(blob);
+    const u = URL.createObjectURL(blob); IMG.urls.push(u);
+    $("#imgPrev").append(h("img", { src: u, alt: `${IMG.label}, imagen ${p + 1} de ${pages.length}` }));
+  }
+  $("#imgNote").textContent = `${items.length} ${items.length === 1 ? "juego" : "juegos"}, ${pages.length} ${pages.length === 1 ? "imagen" : "imágenes"}. Sigue el orden y el filtro actuales.` +
+    (failed ? ` ${failed} ${failed === 1 ? "portada no se pudo incluir" : "portadas no se pudieron incluir"} (se dibuja la inicial del título).` : "");
+}
+function imgFiles() {
+  const slug = IMG.label.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-");
+  const d = new Date().toISOString().slice(0, 10);
+  return IMG.blobs.map((b, i) => new File([b], `biblioteca-${slug}-${d}${IMG.blobs.length > 1 ? "-" + (i + 1) : ""}.png`, { type: "image/png" }));
+}
+function paintImgMode() { for (const b of document.querySelectorAll("#imgMode button")) b.setAttribute("aria-pressed", String(b.dataset.m === IMG.mode)); }
+$("#btnImg").addEventListener("click", () => {
+  const items = visible(); if (!items.length) { toast("No hay juegos que exportar"); return; }
+  IMG.items = items; IMG.label = catLabel(tab); IMG.mode = view === "list" ? "list" : "grid";
+  $("#imgHead").textContent = "Imagen · " + IMG.label; paintImgMode();
+  const can = typeof navigator.canShare === "function" && navigator.canShare({ files: [new File([""], "a.png", { type: "image/png" })] });
+  $("#imgShare").classList.toggle("hidden", !can);
+  openDlg($("#dlgImg")); buildImages();
+});
+$("#imgMode").addEventListener("click", e => { const b = e.target.closest("button[data-m]"); if (!b || b.dataset.m === IMG.mode) return; IMG.mode = b.dataset.m; paintImgMode(); buildImages(); });
+$("#imgDl").addEventListener("click", () => {
+  const fs = imgFiles(); if (!fs.length) return;
+  fs.forEach((f, i) => setTimeout(() => { const a = h("a", { href: URL.createObjectURL(f), download: f.name }); document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }, i * 400));
+});
+$("#imgShare").addEventListener("click", async () => {
+  const fs = imgFiles(); if (!fs.length) return;
+  try { await navigator.share({ files: fs, title: "Mi Biblioteca · " + IMG.label }); } catch (e) { if (e && e.name !== "AbortError") toast("No se pudo compartir; usa Descargar"); }
+});
+$("#dlgImg").addEventListener("close", () => {
+  IMG.seq++; IMG.urls.forEach(u => URL.revokeObjectURL(u)); IMG.urls = []; IMG.blobs = [];
+  IMG.bmp.forEach(b => b && b.close && b.close()); IMG.bmp.clear(); $("#imgPrev").replaceChildren();
 });
 
 /* sin zoom con pellizco (iOS Safari ignora user-scalable) */
