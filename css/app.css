@@ -117,7 +117,7 @@ nav.tabs button[aria-selected=true] { color: var(--accent); }
 .card .body { position: absolute; left: 0; right: 48px; bottom: 0; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
 .card .title { font-size: 17px; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.6); }
 .card .sub { color: rgba(255,255,255,.78); }
-.card .heart { position: absolute; right: 12px; bottom: 10px; font-size: 20px; line-height: 1; color: rgba(255,255,255,.7); }
+.card .heart { position: absolute; right: 2px; bottom: 0; padding: 10px; cursor: pointer; font-size: 20px; line-height: 1; color: rgba(255,255,255,.7); }
 .card .heart.on { color: var(--accent); }
 .card .pill { position: absolute; top: 8px; left: 8px; padding: 2px 7px; border-radius: 3px; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; background: rgba(0,0,0,.6); color: #fff; }
 
@@ -351,7 +351,7 @@ main.enter { animation: pageIn .22s ease-out; }
   .card .title { font-size: 20px; }
   .card .sub { font-size: 14.5px; }
   .card .body { padding: 12px 14px; right: 56px; }
-  .card .heart { font-size: 25px; right: 14px; bottom: 12px; }
+  .card .heart { font-size: 25px; right: 4px; bottom: 2px; }
   .card .pill { font-size: 12px; top: 10px; left: 10px; }
   .card .initial { font-size: 72px; }
   nav.tabs button { font-size: 13px; gap: 4px; }

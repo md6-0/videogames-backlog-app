@@ -45,9 +45,18 @@ function cardEl(g, inFav) {
     letter => h("span", { class: "initial" }, letter));
   if (inFav) c.append(h("span", { class: "pill" }, catLabel(g.status)));
   if (g.rating != null) c.append(ratingTag(g.rating));
-  c.append(h("div", { class: "body" }, h("div", { class: "title" }, g.title), sub ? h("div", { class: "sub" }, sub) : null),
-    heartEl("heart" + (g.favorite ? " on" : ""), g.favorite));
+  const heart = heartEl("heart" + (g.favorite ? " on" : ""), g.favorite);
+  heart.addEventListener("click", e => { e.stopPropagation(); toggleFavorite(g); });   // el corazón no abre la ficha
+  c.append(h("div", { class: "body" }, h("div", { class: "title" }, g.title), sub ? h("div", { class: "sub" }, sub) : null), heart);
   return c;
+}
+/** Añade o quita un juego de Favoritos desde el corazón de su tarjeta. El aviso permite deshacerlo. */
+async function toggleFavorite(g) {
+  const before = { favorite: g.favorite, favRank: g.favRank, updated: g.updated };
+  setFavorite(g, !g.favorite); g.updated = Date.now();
+  await DB.put(g); render();
+  toast(g.favorite ? "Añadido a favoritos" : "Quitado de favoritos", "success", {
+    action: { label: "Deshacer", run: async () => { Object.assign(g, before); await DB.put(g); render(); } } });
 }
 function navIcon(id) {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");

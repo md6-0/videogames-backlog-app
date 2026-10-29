@@ -1,0 +1,35 @@
+// Corazón de las tarjetas: añade o quita de Favoritos sin abrir la ficha, con Deshacer.
+const { chromium, devices } = require('playwright');
+const http = require('http'), fs = require('fs'), path = require('path');
+const MIME = {'.html':'text/html','.css':'text/css','.js':'text/javascript','.png':'image/png','.webmanifest':'application/manifest+json'};
+const srv = http.createServer((req, res) => { let p = req.url.split('?')[0]; if (p === '/') p = '/index.html'; const f = path.join(require('path').resolve(__dirname, '..'), p); if (!fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); return res.end(); } res.writeHead(200, {'Content-Type': MIME[path.extname(f)]||'application/octet-stream'}); res.end(fs.readFileSync(f)); }).listen(8139);
+const out = []; const ok = (n, c, x = '') => out.push((c ? 'OK   ' : 'FAIL ') + n + (c ? '' : '  ' + x));
+(async () => { try {
+  const b = await chromium.launch(); const ctx = await b.newContext({ ...devices['Pixel 7'] }); const page = await ctx.newPage(); const errs = []; page.on('pageerror', e => errs.push(e.message));
+  await page.goto('http://localhost:8139/'); await page.waitForSelector('#tabs button');
+  await page.evaluate(async () => { const gs = [['A', true, 0], ['B', false, 1], ['C', true, 2], ['D', false, 3]].map(([t, f, i]) => ({ id: t, title: 'Juego ' + t, year: 2020, platforms: 'PC', cover: '', status: 'backlog', favorite: f, favRank: f ? i : null, rank: i, added: 1, updated: 1 })); await DB.replaceAll(gs); games = gs; setView('list'); render(); });
+  const fav = () => page.evaluate(() => DB.all().then(a => a.filter(g => g.favorite).map(g => g.id).sort().join()));
+  const dlgOpen = () => page.locator('#dlgEdit[open]').count();
+  await page.click('#tabs button:has-text("Backlog")'); await page.waitForTimeout(300);
+  const heartB = page.locator('#list .card:has-text("Juego B") .heart');
+  await heartB.tap(); await page.waitForTimeout(300);
+  ok('tocar el corazón añade a favoritos', (await fav()) === 'A,B,C', await fav());
+  ok('no abre la ficha', (await dlgOpen()) === 0);
+  ok('aviso con Deshacer', (await page.locator('.toast .tm').innerText()) === 'Añadido a favoritos' && (await page.locator('.toast .ta').innerText()) === 'Deshacer');
+  ok('el corazón se rellena', await page.locator('#list .card:has-text("Juego B") .heart.on').count() === 1);
+  await page.click('.toast .ta'); await page.waitForTimeout(300);
+  ok('Deshacer lo quita', (await fav()) === 'A,C');
+  await page.locator('#list .card:has-text("Juego A") .heart').tap(); await page.waitForTimeout(300);
+  ok('tocar otra vez quita de favoritos', (await fav()) === 'C');
+  const rankC = await page.evaluate(() => games.find(g => g.id === 'C').favRank);
+  await page.click('.toast .ta'); await page.waitForTimeout(300);
+  const a = await page.evaluate(() => games.find(g => g.id === 'A')); ok('Deshacer devuelve el juego con su posición', (await fav()) === 'A,C' && a.favRank === 0, JSON.stringify(a.favRank));
+  await page.click('#tabs button:has-text("Favoritos")'); await page.waitForTimeout(300);
+  await page.locator('#list .card:has-text("Juego C") .heart').tap(); await page.waitForTimeout(300);
+  ok('en Favoritos, quitarlo lo saca de la lista', await page.locator('#list .card:has-text("Juego C")').count() === 0);
+  await page.click('.toast .ta'); await page.waitForTimeout(300);
+  ok('Deshacer lo devuelve a la lista', await page.locator('#list .card:has-text("Juego C")').count() === 1);
+  await page.locator('#list .card:has-text("Juego C")').tap({ position: { x: 60, y: 30 } }); await page.waitForSelector('#dlgEdit[open]');
+  ok('tocar la tarjeta fuera del corazón sigue abriendo la ficha', (await dlgOpen()) === 1);
+  ok('sin errores de JS', !errs.length, errs.join('|'));
+} catch (e) { out.push('FAIL excepción ' + e.message); } console.log(out.join('\n')); console.log('FALLOS:', out.filter(l => l.startsWith('FAIL')).length); srv.close(); process.exit(0); })();
