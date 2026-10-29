@@ -1,4 +1,4 @@
-const VERSION = "v35";
+const VERSION = "v36";
 const CACHE = "biblioteca-" + VERSION;
 // Portadas: caché propia, sin versión, para que sobreviva a las actualizaciones de la app.
 const COVERS = "biblioteca-portadas";
@@ -17,10 +17,19 @@ self.addEventListener("message", e => {
   if (d.type === "SKIP_WAITING") self.skipWaiting();
   if (d.type === "GET_VERSION" && e.ports[0]) e.ports[0].postMessage(VERSION);
 });
+// RAWG sirve la misma imagen recortada a 600x400 cambiando /media/ por /media/crop/600/400/ (mucho más ligera).
+const small = u => u.replace(/^(https:\/\/media\.rawg\.io\/media\/)(?!crop\/|resize\/)/, "$1crop/600/400/");
 async function cover(req) {
   const c = await caches.open(COVERS);
   const hit = await c.match(req.url);
   if (hit) return hit;
+  const sm = small(req.url);
+  if (sm !== req.url) {
+    try {
+      const r = await fetch(sm, { mode: "cors", credentials: "omit" });
+      if (r.ok) { c.put(req.url, r.clone()).catch(() => {}); return r; }
+    } catch {}
+  }
   // Se pide con CORS para guardar una respuesta normal (las opacas ocupan mucho más cupo). Si la web no lo permite, se sirve sin guardar.
   try {
     const r = await fetch(req.url, { mode: "cors", credentials: "omit" });
