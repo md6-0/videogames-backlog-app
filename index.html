@@ -302,11 +302,7 @@ main.enter{animation:pageIn .22s ease-out}
     </div>
   </div>
   <div class="row"><span class="lbl">Plataformas en las que lo has jugado</span>
-    <div class="chips" id="ePlats"></div>
-    <div style="display:flex;gap:8px;margin-top:8px">
-      <input id="ePlatOther" placeholder="Otra plataforma…" aria-label="Otra plataforma" autocomplete="off">
-      <button type="button" class="btn small" id="ePlatAdd">Añadir</button>
-    </div></div>
+    <div class="chips" id="ePlats"></div></div>
   <div class="row"><span class="lbl">Estado</span>
     <div class="seg" id="eStatus"></div></div>
   <div class="row"><span class="lbl">Nota (0–10)</span>
@@ -323,7 +319,6 @@ main.enter{animation:pageIn .22s ease-out}
   <div class="row"><label for="eHours">Horas jugadas</label>
     <input id="eHours" type="text" inputmode="decimal" autocomplete="off" placeholder="Sin registrar (admite 12,5)"></div>
   <div class="row"><button class="btn" id="eFav" aria-pressed="false" style="width:100%"></button></div>
-  <div class="row"><label for="eNotes">Notas</label><textarea id="eNotes" rows="3" placeholder="Opinión, horas, lo que sea…"></textarea></div>
   <div class="row"><label for="eCoverUrl">Portada (opcional)</label><input id="eCoverUrl" inputmode="url" placeholder="URL: https://…">
     <div style="display:flex;gap:8px;margin-top:8px">
       <button type="button" class="btn small" id="eCoverPick">Subir imagen del dispositivo</button>
@@ -663,13 +658,6 @@ function paintPlats() {
   $("#ePlats").replaceChildren(...opts.map(p => h("button", { type: "button", "aria-pressed": String(editing.plats.includes(p)),
     onclick: () => { editing.plats = editing.plats.includes(p) ? editing.plats.filter(x => x !== p) : [...editing.plats, p]; paintPlats(); } }, p)));
 }
-function addOtherPlat() {
-  const v = $("#ePlatOther").value.trim(); if (!v) return;
-  if (!editing.plats.some(p => p.toLowerCase() === v.toLowerCase())) editing.plats.push(v);
-  $("#ePlatOther").value = ""; paintPlats();
-}
-$("#ePlatAdd").addEventListener("click", addOtherPlat);
-$("#ePlatOther").addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); addOtherPlat(); } });
 function paintRating() {
   $("#eBig").textContent = fmtRating(editing.rating);
   $("#eBig").style.color = editing.rating == null ? "var(--muted)" : ratingColor(editing.rating);
@@ -685,8 +673,8 @@ function openEdit(id, isNew = false) {
   const g = games.find(x => x.id === id); if (!g) return;
   editing = { ...g, _new: isNew };
   $("#editHead").textContent = isNew ? "Nuevo juego" : "Editar juego";
-  $("#eTitle").value = g.title; $("#eYear").value = g.year || ""; editing.plats = splitPlats(g.platforms); $("#ePlatOther").value = ""; paintPlats();
-  $("#eNotes").value = g.notes || ""; $("#eCoverUrl").value = (g.cover || "").startsWith("data:") ? "" : (g.cover || ""); $("#eCoverUrl").placeholder = (g.cover || "").startsWith("data:") ? "Imagen subida desde el dispositivo" : "URL: https://…";
+  $("#eTitle").value = g.title; $("#eYear").value = g.year || ""; editing.plats = splitPlats(g.platforms); paintPlats();
+  $("#eCoverUrl").value = (g.cover || "").startsWith("data:") ? "" : (g.cover || ""); $("#eCoverUrl").placeholder = (g.cover || "").startsWith("data:") ? "Imagen subida desde el dispositivo" : "URL: https://…";
   $("#eHours").value = g.hours ?? "";
   fillPlayed(g.playedY, g.playedM);
   const c = coverEl(g); $("#eCover").replaceWith(c); c.id = "eCover";
@@ -729,7 +717,7 @@ $("#eSave").addEventListener("click", async () => {
   if (hrsRaw !== "" && hours == null) { $("#eHours").focus(); toast("Horas no válidas", "warning"); return; }
   const py = parseInt($("#ePlayedY").value, 10), pm = parseInt($("#ePlayedM").value, 10);
   const g = { ...editing, playedY: Number.isFinite(py) ? py : null, playedM: Number.isFinite(py) && Number.isFinite(pm) ? pm : null, hours, title, year: Number.isFinite(y) ? y : null, platforms: editing.plats.join(", "),
-    notes: $("#eNotes").value.trim(), cover: safeUrl($("#eCoverUrl").value) || editing.cover || "", updated: Date.now() };
+    cover: safeUrl($("#eCoverUrl").value) || editing.cover || "", updated: Date.now() };
   delete g._new; delete g.plats;
   const orig = games.find(x => x.id === g.id);
   if (orig && orig.status !== g.status && g.status === "played") stampPlayed(g);
