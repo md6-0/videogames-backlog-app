@@ -902,14 +902,12 @@ async function resolveDuplicate(over) {
   const dup = dups.find(g => inTarget(g, cat)) || dups[0];
   const where = dup.favorite && cat === "fav" ? "Favoritos" : catLabel(dup.status);
   if (inTarget(dup, cat)) {
-    const r = await ask({ title: "Ya lo tienes", text: `"${dup.title}" ya está en ${catLabel(cat)}.`, ok: "Ver el que tengo", alt: "Añadir otro igualmente" });
-    if (r === "alt") return true;
+    const r = await ask({ title: "Ya lo tienes", text: `"${dup.title}" ya está en ${catLabel(cat)}.`, ok: "Ver el que tengo" });
     if (r === "ok") { $("#dlgAdd").close(); openEdit(dup.id); }
     return false;
   }
   const verb = cat === "fav" ? "Añadir a Favoritos" : "Moverlo a " + catLabel(cat);
-  const r = await ask({ title: "Ya lo tienes", text: `"${dup.title}" ya está en ${where}.`, ok: verb, alt: "Añadir otro igualmente" });
-  if (r === "alt") return true;
+  const r = await ask({ title: "Ya lo tienes", text: `"${dup.title}" ya está en ${where}.`, ok: verb });
   if (r !== "ok") return false;
   if (cat === "fav") { dup.favorite = true; dup.favRank = null; appendRank(dup, "favRank", games.filter(x => x.favorite)); }
   else { dup.status = cat; dup.updated = Date.now(); if (cat === "played") { if (!dup.finished) dup.finished = Date.now(); stampPlayed(dup); } dup.rank = null; appendRank(dup, "rank", games.filter(x => x.status === cat)); }
