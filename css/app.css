@@ -246,7 +246,7 @@ details.more[open] summary::after { content: "–"; }
 .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .stat { padding: 8px 4px; border-radius: 10px; text-align: center; background: var(--surface2); }
 .stat b { display: block; font-size: 17px; }
-.stat span { font-size: 11px; color: var(--muted); }
+.stat span { display: block; font-size: 11px; line-height: 1.2; color: var(--muted); }
 .set { margin: 12px 0; padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: rgba(255,255,255,.04); }
 .set h3 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--accent); }
 .set .lbl { margin-top: 2px; }

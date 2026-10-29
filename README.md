@@ -104,7 +104,7 @@ Para publicarla vale cualquier hosting estático con HTTPS. Con GitHub Pages: *S
 
 ### Publicar una versión nueva
 
-Antes de subir cambios hay que **aumentar `VERSION` en `sw.js`** (por ejemplo, de `1.1.0` a `1.1.1`). Ese número es lo que hace que el navegador detecte que hay algo nuevo y muestre el aviso. Sin cambiarlo, quien ya tenga la app instalada seguirá con la versión anterior.
+Antes de subir cambios hay que **aumentar `VERSION` en `sw.js`** (por ejemplo, de `1.1.1` a `1.1.2`). Ese número es lo que hace que el navegador detecte que hay algo nuevo y muestre el aviso. Sin cambiarlo, quien ya tenga la app instalada seguirá con la versión anterior.
 
 Si has añadido o renombrado algún archivo, inclúyelo también en la lista `SHELL` de `sw.js`. Así se guarda en el dispositivo y la app sigue funcionando sin conexión.
 

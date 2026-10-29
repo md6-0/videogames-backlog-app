@@ -13,7 +13,7 @@ function paintStats() {
   const avg = rated.length ? rated.reduce((s, g) => s + g.rating, 0) / rated.length : null;
   const hours = Math.round(games.reduce((s, g) => s + (g.hours || 0), 0));
   $("#stats").replaceChildren(...[
-    [games.length, "Total"], [inCat("played").length, "Jugados"],
+    [games.length, "Juegos totales"], [inCat("played").length, "Jugados"],
     [avg == null ? "—" : avg.toFixed(1), "Nota media"], [hours.toLocaleString("es-ES"), "Horas totales"]
   ].map(([n, label]) => h("div", { class: "stat" }, h("b", {}, String(n)), h("span", {}, label))));
 }
