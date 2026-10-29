@@ -285,6 +285,26 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 .ph{border-radius:12px}
 .tile .chip,.card .chip{border-radius:999px;box-shadow:0 2px 8px rgba(0,0,0,.4)}
 .rw-card b{color:#fff}.rw-card small{color:rgba(255,255,255,.88)}.rw-card .cat-go{color:#fff}
+
+/* Ficha y ajustes: maquetación */
+.sheet.edit .hero{flex-direction:column;align-items:stretch;gap:10px}
+#dlgEdit .hero #eCover{width:100%;min-width:0;height:min(24vh,180px);border-radius:12px;font-size:72px;box-shadow:0 4px 14px rgba(0,0,0,.35),0 0 0 1px rgba(255,255,255,.07)}
+#dlgEdit .hero .ttl{display:flex;gap:8px}#dlgEdit .hero .ttl #eTitle{flex:1;min-width:0}#dlgEdit .hero .ttl #eYear{width:84px;flex:none}
+.sheet.edit .row{margin:12px 0}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}.two select,.two input,.two .btn{width:100%}
+.row.two .btn{padding:11px 6px;font-size:14px;white-space:nowrap}
+.rate{gap:10px}.rate .big{min-width:56px}.rate .btn{flex:none}
+details.more{margin:12px 0;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:12px;padding:0 12px}
+details.more summary{cursor:pointer;padding:12px 0;font-weight:600;color:var(--accent);list-style:none}
+details.more summary::-webkit-details-marker{display:none}details.more summary::after{content:"+";float:right;color:var(--muted)}
+details.more[open] summary::after{content:"–"}details.more[open]{padding-bottom:12px}
+.btns.sticky{position:sticky;bottom:calc(-1 * (20px + env(safe-area-inset-bottom)));margin:14px -16px calc(-20px - env(safe-area-inset-bottom));padding:12px 16px calc(14px + env(safe-area-inset-bottom));background:linear-gradient(transparent,var(--surface) 28%)}
+.set{margin:12px 0;padding:12px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--line)}
+.set h3{margin:0 0 8px;font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--accent)}
+.set .lbl{margin-top:2px}.set .note{margin:8px 0 0}.set .two .note{margin:0 0 4px}
+.inl .btn{align-self:stretch}.inl{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.inl input{flex:1;min-width:0;width:auto}
+.stats{grid-template-columns:repeat(4,1fr)!important;gap:6px}
+.stat{padding:8px 4px;border-radius:10px}.stat b{font-size:17px}.stat span{font-size:11px}
 </style>
 </head>
 <body>
@@ -339,13 +359,13 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 </div></dialog>
 
 <!-- Editar -->
-<dialog id="dlgEdit"><div class="sheet">
+<dialog id="dlgEdit"><div class="sheet edit">
   <h2><span id="editHead">Juego</span><button class="icon-btn" data-close aria-label="Cerrar">✕</button></h2>
   <div class="hero">
     <div class="cover" id="eCover"></div>
-    <div style="flex:1;min-width:0">
+    <div class="ttl">
       <input id="eTitle" placeholder="Título" aria-label="Título">
-      <input id="eYear" inputmode="numeric" placeholder="Año" aria-label="Año" style="width:90px;margin-top:8px">
+      <input id="eYear" inputmode="numeric" placeholder="Año" aria-label="Año">
     </div>
   </div>
   <div class="row"><span class="lbl">Plataformas en las que lo has jugado</span>
@@ -356,24 +376,29 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
     <div class="rate">
       <div class="big" id="eBig">—</div>
       <input type="range" id="eRange" min="0" max="10" step="0.5" value="5" aria-label="Nota">
-    </div>
-    <button class="btn small" id="eClear" style="margin-top:6px">Quitar nota</button></div>
+      <button class="btn small" id="eClear">Quitar</button>
+    </div></div>
   <div class="row"><span class="lbl">Cuándo lo jugaste</span>
-    <div style="display:flex;gap:10px">
+    <div class="two">
       <select id="ePlayedM" aria-label="Mes"></select>
       <select id="ePlayedY" aria-label="Año"></select>
     </div></div>
-  <div class="row"><label for="eHours">Horas jugadas</label>
-    <input id="eHours" type="text" inputmode="decimal" autocomplete="off" placeholder="Sin registrar (admite 12,5)"></div>
-  <div class="row"><button class="btn" id="eFav" aria-pressed="false" style="width:100%"></button></div>
-  <div class="row"><label for="eCoverUrl">Portada (opcional)</label><input id="eCoverUrl" inputmode="url" placeholder="URL: https://…">
+  <div class="row two">
+    <div><label for="eHours" class="lbl">Horas jugadas</label>
+      <input id="eHours" type="text" inputmode="decimal" autocomplete="off" placeholder="12,5"></div>
+    <div><span class="lbl">Favorito</span>
+      <button class="btn" id="eFav" aria-pressed="false"></button></div>
+  </div>
+  <details class="more" id="eCoverBox"><summary>Cambiar portada</summary>
+    <input id="eCoverUrl" inputmode="url" placeholder="URL: https://…" aria-label="URL de la portada">
     <div style="display:flex;gap:8px;margin-top:8px">
-      <button type="button" class="btn small" id="eCoverPick">Subir imagen del dispositivo</button>
-      <button type="button" class="btn small" id="eCoverClear">Quitar</button>
+      <button type="button" class="btn small" id="eCoverPick">Subir imagen</button>
+      <button type="button" class="btn small" id="eCoverClear">Quitar portada</button>
     </div>
     <input type="file" id="eCoverFile" accept="image/*" class="hidden">
-    <p class="note">Las imágenes subidas se guardan en el dispositivo y siempre salen en las imágenes que exportas. Una URL de otra web puede no salir si esa web no lo permite.</p></div>
-  <div class="btns">
+    <p class="note">Las imágenes subidas se guardan en el dispositivo y siempre salen en las imágenes que exportas. Una URL de otra web puede no salir si esa web no lo permite.</p>
+  </details>
+  <div class="btns sticky">
     <button class="btn danger" id="eDel">Eliminar</button>
     <button class="btn primary" id="eSave">Guardar</button>
   </div>
@@ -421,32 +446,34 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 <dialog id="dlgSet"><div class="sheet">
   <h2><span>Ajustes</span><button class="icon-btn" data-close aria-label="Cerrar">✕</button></h2>
   <div class="stats" id="stats"></div>
-  <div class="row"><span class="lbl">Columnas (páginas de categoría)</span>
-    <div style="display:flex;gap:10px">
-      <div style="flex:1"><label for="colsList" class="note">En lista</label>
+  <section class="set"><h3>Apariencia</h3>
+    <span class="lbl">Columnas en las páginas de categoría</span>
+    <div class="two">
+      <div><label for="colsList" class="note">En lista</label>
         <select id="colsList"><option value="0">Automático</option><option>1</option><option>2</option><option>3</option><option>4</option></select></div>
-      <div style="flex:1"><label for="colsGrid" class="note">En cuadrícula</label>
+      <div><label for="colsGrid" class="note">En cuadrícula</label>
         <select id="colsGrid"><option value="0">Automático</option><option>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option><option>8</option></select></div>
     </div>
-    <p class="note">«Automático» se adapta al ancho de la pantalla. Inicio no cambia: sus filas se deslizan.</p></div>
-  <div class="row"><label for="apiKey">Clave API de RAWG</label>
-    <input id="apiKey" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Pega aquí tu clave">
-    <p class="note">Gratis en <a href="https://rawg.io/apidocs" target="_blank" rel="noopener">rawg.io/apidocs</a>. Se guarda solo en este dispositivo.</p>
-    <button class="btn small" id="saveKey">Guardar clave</button></div>
-  <div class="row"><span class="lbl">Copia de seguridad</span>
+    <p class="note">«Automático» se adapta al ancho de la pantalla. Inicio no cambia.</p></section>
+  <section class="set"><h3>Búsqueda de portadas</h3>
+    <label for="apiKey" class="lbl">Clave API de RAWG</label>
+    <div class="inl">
+      <input id="apiKey" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Pega aquí tu clave">
+      <button class="btn small" id="saveKey">Guardar</button>
+    </div>
+    <p class="note">Gratis en <a href="https://rawg.io/apidocs" target="_blank" rel="noopener">rawg.io/apidocs</a>. Se guarda solo en este dispositivo.</p></section>
+  <section class="set"><h3>Datos</h3>
     <div class="btns" style="margin-top:0">
       <button class="btn" id="exp">Exportar</button>
       <button class="btn" id="imp">Importar</button>
     </div>
     <p class="note">Tus datos viven solo en este dispositivo. Exporta de vez en cuando: si borras los datos del navegador, se pierden.</p>
-    <input type="file" id="file" accept="application/json,.json" class="hidden">
-  </div>
-  <div class="row"><span class="lbl">Aplicación</span>
-    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <input type="file" id="file" accept="application/json,.json" class="hidden"></section>
+  <section class="set"><h3>Aplicación</h3>
+    <div class="inl">
       <button class="btn small" id="chk">Buscar actualizaciones</button>
       <span class="note" id="ver"></span>
-    </div>
-  </div>
+    </div></section>
 </div></dialog>
 
 <script>
