@@ -10,7 +10,7 @@ Es una aplicación web que se instala en el móvil como cualquier otra app. Func
 
 ### Organizar tus juegos
 
-La biblioteca se reparte en tres listas según el momento en que está cada juego: **Backlog** (los que tienes pendientes), **Jugando** y **Jugados**. Aparte está **Favoritos**, donde aparece cualquier juego que marques con el corazón, esté en la lista que esté. En la vista de lista, tocar el corazón de una tarjeta lo añade o lo quita de Favoritos al momento, con un aviso para deshacerlo.
+La biblioteca se reparte en tres listas según el momento en que está cada juego: **Backlog** (los que tienes pendientes), **Jugando** y **Jugados**. Aparte está **Favoritos**, donde aparece cualquier juego que marques con el corazón, esté en la lista que esté. Tocar el corazón de cualquier portada o tarjeta lo añade o lo quita de Favoritos al momento, con un aviso para deshacerlo.
 
 La pantalla de **Inicio** muestra una fila por lista, como en una tienda de juegos. Si mantienes pulsado un juego y lo arrastras a otra fila, cambia de lista. Así, por ejemplo, pasas un juego de Jugando a Jugados sin entrar en su ficha. Cada fila se desliza con el dedo y, en el ordenador, con unas flechas que aparecen al pasar el ratón por encima. Además, al pasar el ratón por una portada se inclina y brilla como un cromo.
 
@@ -119,7 +119,7 @@ Cada prueba levanta su propio servidor local y llega a simular las respuestas de
 
 ### Publicar una versión nueva
 
-Antes de subir cambios hay que **aumentar `VERSION` en `sw.js`** (por ejemplo, de `1.5.0` a `1.5.1`). Ese número es lo que hace que el navegador detecte que hay algo nuevo y muestre el aviso. Sin cambiarlo, quien ya tenga la app instalada seguirá con la versión anterior.
+Antes de subir cambios hay que **aumentar `VERSION` en `sw.js`** (por ejemplo, de `1.5.1` a `1.5.2`). Ese número es lo que hace que el navegador detecte que hay algo nuevo y muestre el aviso. Sin cambiarlo, quien ya tenga la app instalada seguirá con la versión anterior.
 
 Si has añadido o renombrado algún archivo, inclúyelo también en la lista `SHELL` de `sw.js`. Así se guarda en el dispositivo y la app sigue funcionando sin conexión.
 

@@ -31,5 +31,20 @@ const out = []; const ok = (n, c, x = '') => out.push((c ? 'OK   ' : 'FAIL ') + 
   ok('Deshacer lo devuelve a la lista', await page.locator('#list .card:has-text("Juego C")').count() === 1);
   await page.locator('#list .card:has-text("Juego C")').tap({ position: { x: 60, y: 30 } }); await page.waitForSelector('#dlgEdit[open]');
   ok('tocar la tarjeta fuera del corazón sigue abriendo la ficha', (await dlgOpen()) === 1);
+  await page.keyboard.press('Escape'); await page.waitForTimeout(300);
+  // portadas (cuadrícula y carruseles de Inicio): el corazón siempre está y se puede tocar
+  await page.evaluate(() => { setView('grid'); render(); });
+  await page.click('#tabs button:has-text("Backlog")'); await page.waitForTimeout(300);
+  ok('cuadrícula: todas las portadas tienen corazón', (await page.locator('#list .tile .hrt').count()) === 4 && (await page.locator('#list .tile .hrt.on').count()) === 2);
+  await page.locator('#list .tile:has-text("Juego B") .hrt').tap(); await page.waitForTimeout(300);
+  ok('cuadrícula: tocar el corazón añade a favoritos sin abrir la ficha', (await fav()) === 'A,B,C' && (await dlgOpen()) === 0, await fav());
+  await page.click('.toast .ta'); await page.waitForTimeout(300);
+  ok('cuadrícula: Deshacer', (await fav()) === 'A,C');
+  await page.click('#tabs button:has-text("Inicio")'); await page.waitForTimeout(300);
+  await page.locator('#home .strip[data-cat=backlog] .tile:has-text("Juego D") .hrt').tap(); await page.waitForTimeout(300);
+  ok('Inicio: tocar el corazón de una portada lo añade', (await fav()) === 'A,C,D' && (await dlgOpen()) === 0, await fav());
+  ok('Inicio: aparece también en la fila de Favoritos', await page.locator('#home .strip[data-cat=fav] .tile:has-text("Juego D")').count() === 1);
+  await page.locator('#home .strip[data-cat=fav] .tile:has-text("Juego D") .hrt').tap(); await page.waitForTimeout(300);
+  ok('Inicio: desde Favoritos se quita', (await fav()) === 'A,C');
   ok('sin errores de JS', !errs.length, errs.join('|'));
 } catch (e) { out.push('FAIL excepción ' + e.message); } console.log(out.join('\n')); console.log('FALLOS:', out.filter(l => l.startsWith('FAIL')).length); srv.close(); process.exit(0); })();

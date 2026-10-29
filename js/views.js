@@ -31,10 +31,12 @@ function pageEnter() { const m = $("main"); m.classList.remove("enter"); void m.
 
 /* ---------- Elementos ---------- */
 /** Portada vertical (carruseles y cuadrícula). */
-function tileEl(g, showFav) {
+function tileEl(g) {
   const t = paintCover(h("button", { class: "tile", "data-id": g.id, "aria-label": g.title, onclick: () => openEdit(g.id) }), g);
   if (g.rating != null) t.append(ratingTag(g.rating));
-  if (showFav && g.favorite) t.append(heartEl("hrt", true));
+  const heart = heartEl("hrt" + (g.favorite ? " on" : ""), g.favorite);
+  heart.addEventListener("click", e => { e.stopPropagation(); toggleFavorite(g); });   // el corazón no abre la ficha
+  t.append(heart);
   t.append(h("div", { class: "cap" }, h("b", {}, g.title), g.hours != null ? h("i", {}, fmtHours(g.hours)) : null));
   return t;
 }
@@ -95,7 +97,7 @@ function renderHome() {
   if (!games.length) { box.replaceChildren(h("div", { class: "empty" }, h("b", {}, "Tu biblioteca está vacía"), "Pulsa + para añadir tu primer juego.")); return; }
   box.replaceChildren(backupReminder() ?? "", rewindCard() ?? "", ...CATS.map(id => {
     const items = sortedCat(id);
-    const strip = h("div", { class: "strip", "data-cat": id }, ...items.slice(0, HOME_MAX).map(g => tileEl(g, id !== "fav")));
+    const strip = h("div", { class: "strip", "data-cat": id }, ...items.slice(0, HOME_MAX).map(g => tileEl(g)));
     if (!items.length) strip.append(h("p", { class: "cat-empty" }, EMPTY_MSG[id][1]));
     if (items.length > HOME_MAX) strip.append(h("button", { class: "tile more", onclick: () => go(id) }, `Ver todos (${items.length})`));
     return h("section", { class: "cat", "aria-label": catLabel(id) },
@@ -129,7 +131,7 @@ function renderList() {
     list.replaceChildren(h("div", { class: "empty" }, h("b", {}, title), hint));
     return;
   }
-  list.replaceChildren(...items.map(g => view === "grid" ? tileEl(g, tab !== "fav") : cardEl(g, tab === "fav")));
+  list.replaceChildren(...items.map(g => view === "grid" ? tileEl(g) : cardEl(g, tab === "fav")));
 }
 /** Vuelve a pintar la pantalla actual a partir del estado. */
 function render() {
