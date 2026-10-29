@@ -77,8 +77,11 @@
 <dialog id="dlgAdd"><div class="sheet add">
   <h2><span>Añadir juego</span><button class="icon-btn" data-close aria-label="Cerrar">✕</button></h2>
   <div id="noKey" class="note hidden">Para buscar con portada hace falta una clave gratuita de RAWG. <button class="btn small" id="goKey">Configurar</button></div>
-  <input id="sq" type="search" placeholder="Busca un juego…" autocomplete="off" aria-label="Buscar juego">
-  <div id="results"></div>
+  <form id="sform" class="sform" role="search">
+    <input id="sq" type="search" placeholder="Busca un juego…" autocomplete="off" enterkeyhint="search" aria-label="Buscar juego">
+    <button class="btn primary" id="sgo" type="submit">Buscar</button>
+  </form>
+  <div id="results" aria-live="polite"></div>
   <div class="btns"><button class="btn" id="manual">Añadir a mano</button></div>
   <p class="note credit">Datos e imágenes de <a href="https://rawg.io" target="_blank" rel="noopener">RAWG</a>.</p>
 </div></dialog>

@@ -16,7 +16,7 @@ La pantalla de **Inicio** muestra una fila por lista, como en una tienda de jueg
 
 ### Añadir juegos
 
-El botón **+** abre un buscador conectado a [RAWG](https://rawg.io), una base de datos pública de videojuegos. Escribes el nombre, eliges el resultado y el juego entra con su portada, su año y las plataformas en las que salió. Si prefieres no usar RAWG, o el juego no aparece, puedes añadirlo a mano.
+El botón **+** abre un buscador conectado a [RAWG](https://rawg.io), una base de datos pública de videojuegos. Escribes el nombre, pulsas *Buscar* (la app solo consulta a RAWG cuando lo pides, para no gastar peticiones de más), eliges el resultado y el juego entra con su portada, su año y las plataformas en las que salió. Si prefieres no usar RAWG, o el juego no aparece, puedes añadirlo a mano.
 
 La app avisa si intentas añadir un juego que ya tienes. Por ejemplo, si lo añades a Jugando y ya estaba en el Backlog, te ofrece moverlo en vez de duplicarlo.
 
@@ -104,7 +104,7 @@ Para publicarla vale cualquier hosting estático con HTTPS. Con GitHub Pages: *S
 
 ### Publicar una versión nueva
 
-Antes de subir cambios hay que **aumentar `VERSION` en `sw.js`** (por ejemplo, de `1.1.1` a `1.1.2`). Ese número es lo que hace que el navegador detecte que hay algo nuevo y muestre el aviso. Sin cambiarlo, quien ya tenga la app instalada seguirá con la versión anterior.
+Antes de subir cambios hay que **aumentar `VERSION` en `sw.js`** (por ejemplo, de `1.2.0` a `1.2.1`). Ese número es lo que hace que el navegador detecte que hay algo nuevo y muestre el aviso. Sin cambiarlo, quien ya tenga la app instalada seguirá con la versión anterior.
 
 Si has añadido o renombrado algún archivo, inclúyelo también en la lista `SHELL` de `sw.js`. Así se guarda en el dispositivo y la app sigue funcionando sin conexión.
 
