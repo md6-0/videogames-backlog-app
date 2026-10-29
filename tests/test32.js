@@ -1,0 +1,36 @@
+// Búsqueda: solo al enviar; spinner mientras espera.
+const { chromium, devices } = require('playwright');
+const http = require('http'), fs = require('fs'), path = require('path');
+const MIME = {'.html':'text/html','.css':'text/css','.js':'text/javascript','.png':'image/png','.webmanifest':'application/manifest+json'};
+const srv = http.createServer((req, res) => { let p = req.url.split('?')[0]; if (p === '/') p = '/index.html'; const f = path.join(require('path').resolve(__dirname, '..'), p); if (!fs.existsSync(f) || fs.statSync(f).isDirectory()) { res.writeHead(404); return res.end(); } res.writeHead(200, {'Content-Type': MIME[path.extname(f)]||'application/octet-stream'}); res.end(fs.readFileSync(f)); }).listen(8136);
+const out = []; const ok = (n, c, x = '') => out.push((c ? 'OK   ' : 'FAIL ') + n + (c ? '' : '  ' + x));
+(async () => { try {
+  const b = await chromium.launch(); const ctx = await b.newContext({ ...devices['Pixel 7'] }); const page = await ctx.newPage(); const errs = []; page.on('pageerror', e => errs.push(e.message));
+  let calls = 0, release;
+  await ctx.route('https://api.rawg.io/**', async r => { calls++; await new Promise(x => release = x);
+    r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ results: [{ id: 1, name: 'Hades', released: '2020-09-17', background_image: null, parent_platforms: [{ platform: { name: 'PC' } }] }] }) }); });
+  await page.goto('http://localhost:8136/'); await page.waitForSelector('#tabs button'); await page.evaluate(() => store.set('rawgKey', 'x'));
+  await page.click('#fab'); await page.waitForTimeout(400);
+  await page.type('#sq', 'hades', { delay: 120 }); await page.waitForTimeout(900);
+  ok('teclear no llama a la API', calls === 0, calls);
+  ok('sin resultados ni spinner al teclear', (await page.locator('#results').innerText()).trim() === '');
+  await page.press('#sq', 'Enter'); await page.waitForTimeout(200);
+  ok('Intro lanza una sola petición', calls === 1, calls);
+  ok('spinner visible mientras espera', await page.locator('#results .spin').isVisible());
+  ok('botón Buscar deshabilitado mientras espera', await page.locator('#sgo').isDisabled());
+  await page.click('#sgo', { force: true }).catch(() => {}); await page.waitForTimeout(150);
+  ok('no se duplica la petición en espera', calls === 1, calls);
+  release(); await page.waitForSelector('#results .res');
+  ok('muestra el resultado', (await page.locator('#results .res').count()) === 1);
+  ok('sin spinner tras responder', (await page.locator('#results .spin').count()) === 0);
+  ok('botón Buscar activo de nuevo', await page.locator('#sgo').isEnabled());
+  await page.click('#sgo'); await page.waitForTimeout(200); ok('el botón Buscar también envía', calls === 2, calls); release();
+  await page.waitForSelector('#results .res');
+  await page.fill('#sq', 'a'); await page.press('#sq', 'Enter'); await page.waitForTimeout(200);
+  ok('menos de 2 letras no busca', calls === 2, calls);
+  await page.fill('#sq', ''); await page.waitForTimeout(100);
+  ok('vaciar el texto limpia resultados', (await page.locator('#results').innerText()).trim() === '');
+  await page.fill('#sq', 'x2'); await page.press('#sq', 'Enter'); await page.waitForTimeout(200); await page.fill('#sq', ''); release(); await page.waitForTimeout(300);
+  ok('respuesta tardía no pisa la lista vaciada', (await page.locator('#results').innerText()).trim() === '' && await page.locator('#sgo').isEnabled());
+  ok('sin errores de JS', !errs.length, errs.join('|'));
+} catch (e) { out.push('FAIL excepción ' + e.message); } console.log(out.join('\n')); console.log('FALLOS:', out.filter(l => l.startsWith('FAIL')).length); srv.close(); process.exit(0); })();

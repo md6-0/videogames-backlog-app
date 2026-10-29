@@ -1,0 +1,7 @@
+{
+  "name": "biblioteca-tests",
+  "private": true,
+  "description": "Pruebas de la app en un navegador real (Playwright). No forman parte de la app publicada.",
+  "scripts": { "test": "node run.js" },
+  "devDependencies": { "playwright": "^1.50.0" }
+}

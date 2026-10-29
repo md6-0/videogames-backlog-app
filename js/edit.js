@@ -111,8 +111,16 @@ $("#eSave").addEventListener("click", async () => {
   render(); toast("Guardado", "success");
 });
 $("#eDel").addEventListener("click", async () => {
-  if (!await ask({ title: "Eliminar juego", text: `¿Eliminar "${editing.title}"? No se puede deshacer.`, ok: "Eliminar", danger: true })) return;
-  await DB.del(editing.id);
-  games = games.filter(x => x.id !== editing.id);
-  $("#dlgEdit").close(); render(); toast("Eliminado", "success");
+  const g = editing;
+  await DB.del(g.id);
+  games = games.filter(x => x.id !== g.id);
+  $("#dlgEdit").close(); render();
+  toast(`"${g.title}" eliminado`, "success", { action: { label: "Deshacer", run: () => restoreGame(g) } });
 });
+/** Devuelve un juego eliminado con todos sus datos y su posición en el orden manual. */
+async function restoreGame(g) {
+  if (games.some(x => x.id === g.id)) return;
+  await DB.put(g); games.push(g); render();
+  toast("Juego recuperado", "success");
+}
+

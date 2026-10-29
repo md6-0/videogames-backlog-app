@@ -31,6 +31,8 @@ Al tocar un juego se abre su ficha, con todo lo que puedes apuntar:
 - las horas que le has dedicado,
 - y si es uno de tus favoritos.
 
+También puedes eliminar el juego desde ahí. Se borra al momento, pero durante unos segundos aparece un aviso con el botón *Deshacer* por si te has equivocado.
+
 Cuando un juego pasa a Jugados, la app apunta sola el mes y el año actuales, y puedes cambiarlos si no es correcto. También puedes cambiar la portada, pegando la dirección de una imagen o subiendo una foto desde el móvil.
 
 ### Ordenar y ver las listas
@@ -102,9 +104,22 @@ y abrir `http://localhost:8000`. La parte que permite usarla sin conexión (el *
 
 Para publicarla vale cualquier hosting estático con HTTPS. Con GitHub Pages: *Settings → Pages → Deploy from a branch*, rama `main` y carpeta raíz. Quedará en `https://<usuario>.github.io/<repositorio>/`.
 
+### Pruebas
+
+La carpeta `tests/` tiene unas treinta pruebas que abren la app en un navegador real (con [Playwright](https://playwright.dev)) y comprueban lo que haría una persona: añadir, mover, ordenar, importar, trabajar sin conexión, actualizar de versión… No forman parte de la app publicada. Para ejecutarlas:
+
+```bash
+cd tests
+npm install
+npx playwright install chromium
+npm test                 # todas; también: node run.js 14 31 para elegir algunas
+```
+
+Cada prueba levanta su propio servidor local y llega a simular las respuestas de RAWG, así que no necesitan internet ni una clave. Tardan unos tres minutos en total. Si cambias algo de la interfaz y una prueba falla, suele ser porque el texto o el comportamiento que comprobaba ha cambiado a propósito: se actualiza la prueba.
+
 ### Publicar una versión nueva
 
-Antes de subir cambios hay que **aumentar `VERSION` en `sw.js`** (por ejemplo, de `1.2.0` a `1.2.1`). Ese número es lo que hace que el navegador detecte que hay algo nuevo y muestre el aviso. Sin cambiarlo, quien ya tenga la app instalada seguirá con la versión anterior.
+Antes de subir cambios hay que **aumentar `VERSION` en `sw.js`** (por ejemplo, de `1.3.0` a `1.3.1`). Ese número es lo que hace que el navegador detecte que hay algo nuevo y muestre el aviso. Sin cambiarlo, quien ya tenga la app instalada seguirá con la versión anterior.
 
 Si has añadido o renombrado algún archivo, inclúyelo también en la lista `SHELL` de `sw.js`. Así se guarda en el dispositivo y la app sigue funcionando sin conexión.
 
@@ -114,6 +129,7 @@ Si has añadido o renombrado algún archivo, inclúyelo también en la lista `SH
 
 ```
 index.html            estructura de la app y de sus paneles
+tests/                pruebas automáticas en un navegador real (no se publican)
 sw.js                 funcionamiento sin conexión, caché de portadas y versión
 manifest.webmanifest  datos para instalarla (nombre, iconos, colores)
 

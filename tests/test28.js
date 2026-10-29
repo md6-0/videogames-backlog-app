@@ -1,0 +1,21 @@
+const { chromium, devices } = require('playwright');
+const http = require('http'), fs = require('fs'), path = require('path');
+const srv = http.createServer((req, res) => { let p = req.url.split('?')[0]; if (p === '/') p = '/index.html'; const f = path.join(require('path').resolve(__dirname, '..'), p); if (!fs.existsSync(f)) { res.writeHead(404); return res.end(); } res.writeHead(200, {'Content-Type': {'.html':'text/html','.css':'text/css','.js':'text/javascript'}[path.extname(f)]||'application/octet-stream'}); res.end(fs.readFileSync(f)); }).listen(8118);
+const out = []; const ok = (n, c, x = '') => out.push((c ? 'OK   ' : 'FAIL ') + n + (c ? '' : '  ' + x));
+(async () => { try {
+  const b = await chromium.launch(); const ctx = await b.newContext({ ...devices['Pixel 7'] }); const page = await ctx.newPage(); const errs = []; page.on('pageerror', e => errs.push(e.message));
+  await page.goto('http://localhost:8118/'); await page.waitForSelector('#tabs button');
+  await page.evaluate(async () => { const mk = (id, t, o) => ({ id, title: t, year: 2020, platforms: '', cover: '', status: 'backlog', rating: null, hours: null, favorite: false, added: 1, updated: 1, ...o }); const a = [mk('a', 'Hades', { rawgId: 7 }), mk('m', 'Manual', {})]; await DB.replaceAll(a); games = a; render(); });
+  await page.evaluate(() => openEdit('a')); await page.waitForTimeout(400);
+  ok('API: título y año sobre la portada', (await page.locator('#eCapT').isVisible()) && (await page.innerText('#eCapT')) === 'Hades' && (await page.innerText('#eCapY')) === '2020');
+  ok('API: sin campos editables de título/año', !(await page.locator('#eTitle').isVisible()) && !(await page.locator('#eYear').isVisible()));
+  await page.fill('#eHours', '5'); await page.click('#eSave'); await page.waitForTimeout(400);
+  const a = await page.evaluate(() => DB.all().then(x => x.find(g => g.id === 'a'))); ok('API: guardar conserva título, año y rawgId', a.title === 'Hades' && a.year === 2020 && a.rawgId === 7 && a.hours === 5, JSON.stringify(a));
+  await page.evaluate(() => openEdit('m')); await page.waitForTimeout(400);
+  ok('Manual: campos editables y sin overlay', (await page.locator('#eTitle').isVisible()) && (await page.locator('#eYear').isVisible()) && !(await page.locator('#eCapT').isVisible()));
+  await page.fill('#eTitle', 'Manual 2'); await page.click('#eSave'); await page.waitForTimeout(400);
+  ok('Manual: se puede renombrar', (await page.evaluate(() => DB.all().then(x => x.find(g => g.id === 'm').title))) === 'Manual 2');
+  await page.evaluate(() => openEdit('a')); await page.waitForTimeout(300); ok('reabrir API tras manual: vuelve al modo API', !(await page.locator('#eTitle').isVisible()));
+  ok('sin errores', errs.length === 0, errs.join('|'));
+  console.log(out.join('\n')); console.log('FALLOS:', out.filter(l => l.startsWith('FAIL')).length, '/', out.length); await b.close(); srv.close();
+} catch (e) { console.log(out.join('\n')); console.log('CRASH', String(e).slice(0, 500)); process.exit(1); } })();

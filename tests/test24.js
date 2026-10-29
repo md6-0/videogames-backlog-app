@@ -1,0 +1,24 @@
+const { chromium } = require('playwright');
+const http = require('http'), fs = require('fs'), path = require('path');
+let hits = 0;
+const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+const srv = http.createServer((req, res) => { let p = req.url.split('?')[0]; if (p === '/') p = '/index.html'; const f = path.join(require('path').resolve(__dirname, '..'), p); if (!fs.existsSync(f)) { res.writeHead(404); return res.end(); } res.writeHead(200, {'Content-Type': {'.html':'text/html','.css':'text/css','.js':'text/javascript'}[path.extname(f)]||'application/octet-stream'}); res.end(fs.readFileSync(f)); }).listen(8110);
+const img = http.createServer((req, res) => { if (req.url.startsWith('/cors')) { hits++; res.writeHead(200, {'Content-Type':'image/png','Access-Control-Allow-Origin':'*'}); return res.end(png); } if (req.url.startsWith('/nocors')) { res.writeHead(200, {'Content-Type':'image/png'}); return res.end(png); } res.writeHead(404); res.end(); }).listen(8111);
+const out = []; const ok = (n, c, x = '') => out.push((c ? 'OK   ' : 'FAIL ') + n + (c ? '' : '  ' + x));
+(async () => { try {
+  const b = await chromium.launch(); const ctx = await b.newContext(); const page = await ctx.newPage(); const errs = []; page.on('pageerror', e => errs.push(e.message));
+  await page.goto('http://localhost:8110/'); await page.waitForSelector('#tabs button');
+  await page.evaluate(() => navigator.serviceWorker.ready); await page.reload(); await page.waitForTimeout(800);
+  ok('SW controla la página', await page.evaluate(() => !!navigator.serviceWorker.controller));
+  const load = u => page.evaluate(u => new Promise(r => { const i = new Image(); i.onload = () => r(true); i.onerror = () => r(false); i.src = u; }), u);
+  ok('imagen con CORS carga', await load('http://localhost:8111/cors1.png'));
+  await page.waitForTimeout(500);
+  ok('imagen con CORS guardada en caché de portadas', await page.evaluate(async () => !!(await (await caches.open('biblioteca-portadas-2')).match('http://localhost:8111/cors1.png'))));
+  ok('imagen sin CORS carga igualmente', await load('http://localhost:8111/nocors1.png'));
+  ok('imagen sin CORS no se guarda', await page.evaluate(async () => !(await (await caches.open('biblioteca-portadas-2')).match('http://localhost:8111/nocors1.png'))));
+  const before = hits; await load('http://localhost:8111/cors1.png'); ok('segunda carga sin red', hits === before, hits + ' vs ' + before);
+  await ctx.setOffline(true); await srv.close?.call; 
+  img.close(); ok('con el servidor de imágenes caído sigue cargando', await load('http://localhost:8111/cors1.png'));
+  ok('sin errores', errs.length === 0, errs.join('|'));
+  console.log(out.join('\n')); console.log('FALLOS:', out.filter(l => l.startsWith('FAIL')).length, '/', out.length); await b.close(); srv.close();
+} catch (e) { console.log(out.join('\n')); console.log('CRASH', String(e).slice(0, 500)); process.exit(1); } })();

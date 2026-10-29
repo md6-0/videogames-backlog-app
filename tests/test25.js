@@ -1,0 +1,25 @@
+const { chromium } = require('playwright');
+const http = require('http'), fs = require('fs'), path = require('path');
+const srv = http.createServer((req, res) => { let p = req.url.split('?')[0]; if (p === '/') p = '/index.html'; const f = path.join(require('path').resolve(__dirname, '..'), p); if (!fs.existsSync(f)) { res.writeHead(404); return res.end(); } res.writeHead(200, {'Content-Type': {'.html':'text/html','.css':'text/css','.js':'text/javascript'}[path.extname(f)]||'application/octet-stream'}); res.end(fs.readFileSync(f)); }).listen(8112);
+const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
+const out = []; const ok = (n, c, x = '') => out.push((c ? 'OK   ' : 'FAIL ') + n + (c ? '' : '  ' + x));
+(async () => { process.env.PW_EXPERIMENTAL_SERVICE_WORKER_NETWORK_EVENTS = '1'; try {
+  const b = await chromium.launch(); const ctx = await b.newContext(); const page = await ctx.newPage(); const errs = []; page.on('pageerror', e => errs.push(e.message));
+  const reqs = []; let smallOk = true;
+  await ctx.route('https://media.rawg.io/**', r => { const u = r.request().url(); reqs.push(u); if (u.includes('/resize/1280/-/') && !smallOk) return r.fulfill({ status: 404, body: 'x' }); r.fulfill({ status: 200, contentType: 'image/png', headers: { 'access-control-allow-origin': '*' }, body: png }); });
+  await page.goto('http://localhost:8112/'); await page.waitForSelector('#tabs button'); await page.evaluate(() => navigator.serviceWorker.ready); await page.reload(); await page.waitForTimeout(800);
+  const load = u => page.evaluate(u => new Promise(r => { const i = new Image(); i.onload = () => r(true); i.onerror = () => r(false); i.src = u; }), u);
+  const A = 'https://media.rawg.io/media/games/aa/a.jpg', B = 'https://media.rawg.io/media/games/bb/b.jpg';
+  ok('portada RAWG carga', await load(A));
+  ok('pide la versión reducida', reqs.some(u => u === 'https://media.rawg.io/media/resize/1280/-/games/aa/a.jpg') && !reqs.includes(A), reqs.join(' '));
+  await page.waitForTimeout(300);
+  ok('se guarda bajo la URL original', await page.evaluate(async u => !!(await (await caches.open('biblioteca-portadas-2')).match(u)), A));
+  const n = reqs.length; await load(A); ok('segunda carga sin red', reqs.length === n);
+  smallOk = false; ok('si la reducida falla, carga la original', await load(B) && reqs.includes(B), reqs.join(' '));
+  const f = await page.evaluate(async () => { const g = { id: 'z1', cover: 'https://media.rawg.io/media/games/cc/c.jpg' }; const bmp = await loadCover(g); return !!bmp; });
+  ok('exportar: loadCover funciona con fallback', f);
+  smallOk = true; reqs.length = 0; const f2 = await page.evaluate(async () => !!(await loadCover({ id: 'z2', cover: 'https://media.rawg.io/media/games/dd/d.jpg' })));
+  ok('exportar: usa la reducida', f2 && reqs.length === 1 && reqs[0].includes('/resize/1280/-/'), reqs.join(' '));
+  ok('sin errores', errs.length === 0, errs.join('|'));
+  console.log(out.join('\n')); console.log('FALLOS:', out.filter(l => l.startsWith('FAIL')).length, '/', out.length); await b.close(); srv.close();
+} catch (e) { console.log(out.join('\n')); console.log('CRASH', String(e).slice(0, 500)); process.exit(1); } })();

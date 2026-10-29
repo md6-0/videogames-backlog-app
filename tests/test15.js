@@ -1,0 +1,11 @@
+const { chromium, devices } = require('playwright');
+const http = require('http'), fs = require('fs'), path = require('path');
+const srv = http.createServer((req, res) => { let p = req.url.split('?')[0]; if (p === '/') p = '/index.html'; const f = path.join(require('path').resolve(__dirname, '..'), p); if (!fs.existsSync(f)) { res.writeHead(404); return res.end(); } res.writeHead(200, {'Content-Type': {'.html':'text/html','.css':'text/css','.js':'text/javascript'}[path.extname(f)]||'application/octet-stream'}); res.end(fs.readFileSync(f)); }).listen(8097);
+const out = []; const ok = (n, c, x = '') => out.push((c ? 'OK   ' : 'FAIL ') + n + (c ? '' : '  ' + x));
+(async () => { const b = await chromium.launch(); const ctx = await b.newContext({ ...devices['Pixel 7'] }); const page = await ctx.newPage();
+  await page.goto('http://localhost:8097/'); await page.waitForSelector('#tabs button');
+  await page.evaluate(async () => { for (let i = 0; i < 4; i++) { const g = { id: 'g' + i, title: 'Juego ' + i, year: 2019, platforms: '', cover: '', status: 'backlog', rating: null, hours: null, favorite: i !== 2, notes: '', added: 1, updated: 100 - i }; await DB.put(g); games.push(g); } render(); });
+  const hearts = sel => page.locator(sel).evaluateAll(es => es.map(e => !!e.querySelector('.hrt')).join(','));
+  ok('Backlog: favoritos 0,1,3 con corazón (posición 0 incluida)', (await hearts('#home .strip[data-cat=backlog] .tile')) === 'true,true,false,true', await hearts('#home .strip[data-cat=backlog] .tile'));
+  ok('Favoritos: sin corazón en ninguno', (await hearts('#home .strip[data-cat=fav] .tile')) === 'false,false,false', await hearts('#home .strip[data-cat=fav] .tile'));
+  console.log(out.join('\n')); await b.close(); srv.close(); })();

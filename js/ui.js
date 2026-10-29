@@ -3,15 +3,17 @@
 
 /* ---------- Avisos (toasts) ---------- */
 const TOAST_ICON = { success: "✓", warning: "!", error: "✕", info: "i" };
-function toast(msg, type = "info") {
+/** Aviso temporal. Con `action: { label, run }` incluye un botón (p. ej. "Deshacer") y dura más. */
+function toast(msg, type = "info", { action, ms = action ? 6000 : 2200 } = {}) {
   if (!TOAST_ICON[type]) type = "info";
   const t = h("div", { class: "toast t-" + type, role: type === "error" ? "alert" : "status" },
     h("span", { class: "ti", "aria-hidden": "true" }, TOAST_ICON[type]), h("span", { class: "tm" }, msg));
+  const hide = () => { t.classList.add("out"); setTimeout(() => t.remove(), 200); };
+  if (action) t.append(h("button", { class: "ta", type: "button", onclick: () => { hide(); action.run(); } }, action.label));
   // Los <dialog> modales viven en la capa superior: el aviso entra en esa capa como popover para verse encima.
   if (typeof t.showPopover === "function") { t.setAttribute("popover", "manual"); document.body.append(t); try { t.showPopover(); } catch {} }
   else document.body.append(t);
-  setTimeout(() => t.classList.add("out"), 2200);
-  setTimeout(() => t.remove(), 2400);
+  setTimeout(() => { if (t.isConnected && !t.classList.contains("out")) hide(); }, ms);
 }
 
 /* ---------- Paneles ---------- */
