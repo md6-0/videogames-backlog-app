@@ -547,7 +547,6 @@ const ICONS = {
 };
 let games = [];
 let tab = "home";
-let sortBy = store.get("sort") || "recent";
 let view = store.get("view") === "grid" ? "grid" : "list";
 let filter = "";
 let editing = null;
@@ -564,10 +563,19 @@ const catLabel = id => id === "fav" ? "Favoritos" : STATUS.find(s => s.id === id
 const inCat = id => id === "fav" ? games.filter(g => g.favorite) : games.filter(g => g.status === id);
 // Opciones de orden. Backlog: aún no se ha jugado (sin nota, horas ni fecha). Jugando: sin terminar (sin nota ni fecha de jugado; las horas sí).
 const SORTS = [["custom", "Mi orden"], ["recent", "Recientes"], ["rating", "Nota: más alta"], ["ratingAsc", "Nota: más baja"], ["title", "A–Z"], ["year", "Año"], ["hours", "Más horas"], ["played", "Jugado: reciente"], ["playedAsc", "Jugado: antiguo"]];
-const HIDDEN_SORTS = { backlog: ["rating", "ratingAsc", "hours", "played", "playedAsc"], playing: ["rating", "ratingAsc", "played", "playedAsc"] };
-const sortsFor = t => SORTS.filter(([v]) => !(HIDDEN_SORTS[t] || []).includes(v));
-// Si el orden guardado no existe en esta categoría se usa "Recientes" sin borrarlo: al volver a otra categoría sigue activo.
-const effectiveSort = () => sortsFor(tab).some(([v]) => v === sortBy) ? sortBy : "recent";
+// Órdenes disponibles por categoría (el primero es el de por defecto). Cada categoría recuerda el suyo.
+const SORTS_BY_CAT = {
+  backlog: ["custom"],
+  playing: ["custom"],
+  played: ["played", "playedAsc", "rating", "ratingAsc", "hours"],
+  fav: ["custom", "rating", "ratingAsc", "hours", "played", "playedAsc"]
+};
+const sortsFor = t => SORTS_BY_CAT[t].map(v => SORTS.find(x => x[0] === v));
+const readSorts = () => { try { return JSON.parse(store.get("sorts") || "{}") || {}; } catch { return {}; } };
+let sortsSaved = readSorts();
+// Si el orden guardado ya no existe en la categoría se usa el de por defecto sin borrarlo.
+const effectiveSort = (t = tab) => { const v = sortsSaved[t]; return SORTS_BY_CAT[t].includes(v) ? v : SORTS_BY_CAT[t][0]; };
+const setSort = (t, v) => { sortsSaved = { ...sortsSaved, [t]: v }; store.set("sorts", JSON.stringify(sortsSaved)); };
 const rankKey = id => id === "fav" ? "favRank" : "rank";   // posición dentro de su estado / dentro de Favoritos
 // Si la categoría ya tiene un orden elegido, el juego que entra se coloca al final; si no, queda por recientes.
 function appendRank(g, key, list) {
@@ -583,22 +591,24 @@ const MONTHS = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", 
 // Al pasar un juego a Jugados sin fecha, se anota el mes y año actuales.
 const stampPlayed = g => { if (!g.playedY) { const d = new Date(); g.playedY = d.getFullYear(); g.playedM = d.getMonth() + 1; } };
 const playedLabel = g => !g.playedY ? "" : (g.playedM ? MONTHS[g.playedM - 1].slice(0, 3) + " " : "") + g.playedY;
+const sortCmp = t => ({
+  recent: (x, y) => y.updated - x.updated,
+  rating: (x, y) => (y.rating ?? -1) - (x.rating ?? -1) || x.title.localeCompare(y.title),
+  title: (x, y) => x.title.localeCompare(y.title, "es"),
+  year: (x, y) => (y.year || 0) - (x.year || 0),
+  hours: (x, y) => (y.hours ?? -1) - (x.hours ?? -1) || x.title.localeCompare(y.title, "es"),
+  ratingAsc: (x, y) => (x.rating ?? 99) - (y.rating ?? 99) || x.title.localeCompare(y.title, "es"),   // sin nota, siempre al final
+  played: (x, y) => (playedKey(y) ?? -1) - (playedKey(x) ?? -1) || x.title.localeCompare(y.title, "es"),
+  playedAsc: (x, y) => (playedKey(x) ?? 1e9) - (playedKey(y) ?? 1e9) || x.title.localeCompare(y.title, "es"),
+  custom: byRank(rankKey(t))
+}[effectiveSort(t)]);
+// Juegos de una categoría en su orden actual (lo usan las páginas y los carruseles de Inicio).
+const sortedCat = t => inCat(t).sort(sortCmp(t));
 function visible() {
   let a = inCat(tab);
   const f = filter.trim().toLowerCase();
   if (f) a = a.filter(g => (g.title + " " + (g.platforms || "")).toLowerCase().includes(f));
-  const cmp = {
-    recent: (x, y) => y.updated - x.updated,
-    rating: (x, y) => (y.rating ?? -1) - (x.rating ?? -1) || x.title.localeCompare(y.title),
-    title: (x, y) => x.title.localeCompare(y.title, "es"),
-    year: (x, y) => (y.year || 0) - (x.year || 0),
-    hours: (x, y) => (y.hours ?? -1) - (x.hours ?? -1) || x.title.localeCompare(y.title, "es"),
-    ratingAsc: (x, y) => (x.rating ?? 99) - (y.rating ?? 99) || x.title.localeCompare(y.title, "es"),   // sin nota, siempre al final
-    played: (x, y) => (playedKey(y) ?? -1) - (playedKey(x) ?? -1) || x.title.localeCompare(y.title, "es"),
-    playedAsc: (x, y) => (playedKey(x) ?? 1e9) - (playedKey(y) ?? 1e9) || x.title.localeCompare(y.title, "es"),
-    custom: byRank(rankKey(tab))
-  }[effectiveSort()];
-  return a.sort(cmp);
+  return a.sort(sortCmp(tab));
 }
 function coverEl(g, cls = "cover") {
   const c = h("div", { class: cls });
@@ -695,7 +705,7 @@ function renderHome() {
       h("span", {}, h("b", {}, `Rewind ${cy}`), h("small", {}, `${st.n} ${st.n === 1 ? "juego" : "juegos"}${st.hrs ? " · " + fmtHours(st.hrs) : ""}`)), h("span", { class: "cat-go", "aria-hidden": "true" }, "›")));
   }
   for (const id of CATS) {
-    const items = inCat(id).sort(byRank(rankKey(id)));
+    const items = sortedCat(id);
     const sec = h("section", { class: "cat", "aria-label": catLabel(id) });
     sec.append(h("button", { class: "cat-h", onclick: () => go(id), "aria-label": `Ver ${catLabel(id)}` },
       h("span", { class: "cat-t" }, catLabel(id)), h("span", { class: "cat-n" }, String(items.length)), h("span", { class: "cat-go", "aria-hidden": "true" }, "›")));
@@ -725,6 +735,7 @@ function render() {
   if (home) { renderHome(); return; }
   $("#sort").replaceChildren(...sortsFor(tab).map(([v, l]) => h("option", { value: v }, l)));
   $("#sort").value = effectiveSort();
+  $("#sort").classList.toggle("hidden", sortsFor(tab).length < 2);
   const list = $("#list"); list.replaceChildren();
   const canSort = effectiveSort() === "custom" && !filter.trim();
   const nc = colsOf(view);
@@ -1364,7 +1375,7 @@ const homeDrag = (() => {
 
 /* filtros */
 $("#q").addEventListener("input", e => { filter = e.target.value; render(); });
-$("#sort").addEventListener("change", e => { sortBy = e.target.value; store.set("sort", sortBy); render(); });
+$("#sort").addEventListener("change", e => { setSort(tab, e.target.value); render(); });
 
 /* actualizaciones de la app */
 let swReg = null, swRefreshing = false, swPending = null;
