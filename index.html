@@ -24,11 +24,11 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--bg);color:var(--text);font:16px/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 html,body{touch-action:pan-x pan-y}
-body{min-height:100dvh;padding-bottom:calc(var(--tabs) + env(safe-area-inset-bottom) + 80px)}
+body{padding-top:var(--upd-h,0px);transition:padding-top .3s cubic-bezier(.2,.8,.2,1);min-height:100dvh;padding-bottom:calc(var(--tabs) + env(safe-area-inset-bottom) + 80px)}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 input,textarea,select{font:inherit;color:var(--text);background:var(--surface2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
 input:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px}
-header{position:sticky;top:0;z-index:5;background:linear-gradient(#1b2838,#171a21);padding:calc(10px + env(safe-area-inset-top)) var(--gutter) 10px;border-bottom:1px solid var(--line)}
+header{position:sticky;top:var(--upd-h,0px);transition:top .3s cubic-bezier(.2,.8,.2,1);z-index:5;background:linear-gradient(#1b2838,#171a21);padding:calc(10px + env(safe-area-inset-top)) var(--gutter) 10px;border-bottom:1px solid var(--line)}
 .top{display:flex;align-items:center;gap:10px}
 .top h1{font-size:20px;margin:0;flex:1;letter-spacing:-.01em;color:#fff;font-weight:600}
 .icon-btn{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(--surface)}
@@ -112,7 +112,7 @@ dialog[open]::backdrop{background:rgba(0,0,0,.55)}
 @keyframes pageIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .toast{animation:toastIn .24s cubic-bezier(.2,.8,.2,1)}
 .toast.out{animation:toastOut .2s ease forwards}
-.upd{animation:slideDown .32s cubic-bezier(.2,.8,.2,1)}
+.upd.enter{animation:slideDown .32s cubic-bezier(.2,.8,.2,1)}
 main.enter{animation:pageIn .22s ease-out}
 .tile,.card,.fab,.btn,.mi,.chips button,.seg button,.vt button,nav.tabs button{transition:transform .14s ease,background-color .18s ease,color .18s ease,opacity .18s ease}
 .tile:active,.card:active,.btn:active,.mi:active,.fab:active{transform:scale(.97)}
@@ -165,7 +165,10 @@ main.enter{animation:pageIn .22s ease-out}
 .stat{background:var(--surface2);border-radius:12px;padding:10px;text-align:center}
 .stat b{display:block;font-size:22px}
 .stat span{font-size:12px;color:var(--muted)}
-.toast{inset:auto;margin:0;border:0;overflow:visible;width:auto;height:auto;position:fixed;left:50%;bottom:calc(var(--tabs) + env(safe-area-inset-bottom) + 84px);transform:translateX(-50%);background:var(--text);color:var(--bg);box-sizing:border-box;min-width:min(88vw,360px);max-width:92vw;text-align:center;padding:14px 24px;border-radius:999px;font-size:15px;z-index:20}
+.toast{inset:auto;margin:0;overflow:visible;width:auto;height:auto;position:fixed;left:50%;bottom:calc(var(--tabs) + env(safe-area-inset-bottom) + 84px);transform:translateX(-50%);box-sizing:border-box;min-width:min(88vw,360px);max-width:92vw;text-align:center;padding:12px 20px 12px 14px;border-radius:999px;font-size:15px;z-index:20;display:flex;align-items:center;justify-content:center;gap:12px;background:var(--surface2);color:var(--text);border:1px solid var(--tc,var(--accent));box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.toast .ti{flex:none;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:var(--tc,var(--accent));color:#0b141d;font-weight:800;font-size:14px;line-height:1}
+.toast .tm{line-height:1.25}
+.toast.t-success{--tc:var(--good)}.toast.t-warning{--tc:var(--mid)}.toast.t-error{--tc:var(--bad)}.toast.t-info{--tc:var(--accent)}
 .hidden{display:none!important}
 
 /* ---------- Tablet: 700px+ ---------- */
@@ -408,8 +411,10 @@ function h(tag, attrs = {}, ...kids) {
   return e;
 }
 const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
-function toast(msg) {
-  const t = h("div", { class: "toast", role: "status" }, msg);
+const TOAST_ICON = { success: "✓", warning: "!", error: "✕", info: "i" };
+function toast(msg, type = "info") {
+  if (!TOAST_ICON[type]) type = "info";
+  const t = h("div", { class: "toast t-" + type, role: type === "error" ? "alert" : "status" }, h("span", { class: "ti", "aria-hidden": "true" }, TOAST_ICON[type]), h("span", { class: "tm" }, msg));
   // Los <dialog> modales viven en la capa superior y tapan cualquier cosa del body: el aviso también entra en esa capa.
   if (typeof t.showPopover === "function") { t.setAttribute("popover", "manual"); document.body.append(t); try { t.showPopover(); } catch {} }
   else document.body.append(t);
@@ -479,8 +484,8 @@ const HOME_MAX = 12;
 const catLabel = id => id === "fav" ? "Favoritos" : STATUS.find(s => s.id === id).label;
 const inCat = id => id === "fav" ? games.filter(g => g.favorite) : games.filter(g => g.status === id);
 // Opciones de orden. Backlog: aún no se ha jugado (sin nota, horas ni fecha). Jugando: sin terminar (sin nota ni fecha de jugado; las horas sí).
-const SORTS = [["custom", "Mi orden"], ["recent", "Recientes"], ["rating", "Mejor nota"], ["title", "A–Z"], ["year", "Año"], ["hours", "Más horas"], ["played", "Jugado: reciente"], ["playedAsc", "Jugado: antiguo"]];
-const HIDDEN_SORTS = { backlog: ["rating", "hours", "played", "playedAsc"], playing: ["rating", "played", "playedAsc"] };
+const SORTS = [["custom", "Mi orden"], ["recent", "Recientes"], ["rating", "Nota: más alta"], ["ratingAsc", "Nota: más baja"], ["title", "A–Z"], ["year", "Año"], ["hours", "Más horas"], ["played", "Jugado: reciente"], ["playedAsc", "Jugado: antiguo"]];
+const HIDDEN_SORTS = { backlog: ["rating", "ratingAsc", "hours", "played", "playedAsc"], playing: ["rating", "ratingAsc", "played", "playedAsc"] };
 const sortsFor = t => SORTS.filter(([v]) => !(HIDDEN_SORTS[t] || []).includes(v));
 // Si el orden guardado no existe en esta categoría se usa "Recientes" sin borrarlo: al volver a otra categoría sigue activo.
 const effectiveSort = () => sortsFor(tab).some(([v]) => v === sortBy) ? sortBy : "recent";
@@ -509,6 +514,7 @@ function visible() {
     title: (x, y) => x.title.localeCompare(y.title, "es"),
     year: (x, y) => (y.year || 0) - (x.year || 0),
     hours: (x, y) => (y.hours ?? -1) - (x.hours ?? -1) || x.title.localeCompare(y.title, "es"),
+    ratingAsc: (x, y) => (x.rating ?? 99) - (y.rating ?? 99) || x.title.localeCompare(y.title, "es"),   // sin nota, siempre al final
     played: (x, y) => (playedKey(y) ?? -1) - (playedKey(x) ?? -1) || x.title.localeCompare(y.title, "es"),
     playedAsc: (x, y) => (playedKey(x) ?? 1e9) - (playedKey(y) ?? 1e9) || x.title.localeCompare(y.title, "es"),
     custom: byRank(rankKey(tab))
@@ -606,10 +612,17 @@ function render() {
 }
 
 /* ---------- diálogos ---------- */
-function openDlg(d) { if (!d.open) d.showModal(); }
+// Los paneles modales tapan todo lo demás, así que el aviso de versión nueva se coloca dentro del panel que esté arriba (y vuelve al body al cerrarlo).
+let dlgStack = [];
+function placeUpd() {
+  dlgStack = dlgStack.filter(x => x.open);
+  const host = dlgStack[dlgStack.length - 1] || document.body, u = $("#upd");
+  if (u.parentNode !== host) host.append(u);
+}
+function openDlg(d) { if (!d.open) d.showModal(); dlgStack = dlgStack.filter(x => x !== d); dlgStack.push(d); placeUpd(); }
 document.addEventListener("click", e => { const c = e.target.closest("[data-close]"); if (c) c.closest("dialog").close(); });
 for (const d of document.querySelectorAll("dialog"))
-  d.addEventListener("click", e => { if (e.target === d) d.close(); });
+{ d.addEventListener("click", e => { if (e.target === d) d.close(); }); d.addEventListener("close", placeUpd); }
 
 /* confirmación en un panel propio (en lugar del confirm() del navegador) */
 function ask({ title, text, ok = "Aceptar", danger = false }) {
@@ -692,16 +705,16 @@ $("#eCoverFile").addEventListener("change", async e => {
     const url = cv.toDataURL("image/jpeg", 0.85);
     if (!safeUrl(url)) throw new Error();
     editing.cover = url; $("#eCoverUrl").value = ""; $("#eCoverUrl").placeholder = "Imagen subida desde el dispositivo"; paintCover();
-  } catch { toast("No se pudo leer esa imagen"); }
+  } catch { toast("No se pudo leer esa imagen", "error"); }
 });
 $("#eCoverUrl").addEventListener("change", e => { editing.cover = safeUrl(e.target.value); const c = coverEl(editing); $("#eCover").replaceWith(c); c.id = "eCover"; });
 $("#eSave").addEventListener("click", async () => {
   const title = $("#eTitle").value.trim();
-  if (!title) { $("#eTitle").focus(); toast("Pon un título"); return; }
+  if (!title) { $("#eTitle").focus(); toast("Pon un título", "warning"); return; }
   const y = parseInt($("#eYear").value, 10);
   const hrsRaw = $("#eHours").value.trim();
   const hours = hrsRaw === "" ? null : cleanHours(hrsRaw);
-  if (hrsRaw !== "" && hours == null) { $("#eHours").focus(); toast("Horas no válidas"); return; }
+  if (hrsRaw !== "" && hours == null) { $("#eHours").focus(); toast("Horas no válidas", "warning"); return; }
   const py = parseInt($("#ePlayedY").value, 10), pm = parseInt($("#ePlayedM").value, 10);
   const g = { ...editing, playedY: Number.isFinite(py) ? py : null, playedM: Number.isFinite(py) && Number.isFinite(pm) ? pm : null, hours, title, year: Number.isFinite(y) ? y : null, platforms: editing.plats.join(", "),
     notes: $("#eNotes").value.trim(), cover: safeUrl($("#eCoverUrl").value) || editing.cover || "", updated: Date.now() };
@@ -713,12 +726,12 @@ $("#eSave").addEventListener("click", async () => {
   if (g.status === "played" && !g.finished) g.finished = Date.now();
   await DB.put(g);
   const i = games.findIndex(x => x.id === g.id); if (i >= 0) games[i] = g; else games.push(g);
-  $("#dlgEdit").close(); if (tab !== "home" && tab !== "fav") { tab = g.status; history.replaceState({ tab }, ""); } render(); toast("Guardado");
+  $("#dlgEdit").close(); if (tab !== "home" && tab !== "fav") { tab = g.status; history.replaceState({ tab }, ""); } render(); toast("Guardado", "success");
 });
 $("#eDel").addEventListener("click", async () => {
   if (!await ask({ title: "Eliminar juego", text: `¿Eliminar "${editing.title}"? No se puede deshacer.`, ok: "Eliminar", danger: true })) return;
   await DB.del(editing.id); games = games.filter(x => x.id !== editing.id);
-  $("#dlgEdit").close(); render(); toast("Eliminado");
+  $("#dlgEdit").close(); render(); toast("Eliminado", "success");
 });
 
 /* ---------- imagen de la lista ---------- */
@@ -830,7 +843,7 @@ function imgFiles() {
 }
 function paintImgMode() { for (const b of document.querySelectorAll("#imgMode button")) b.setAttribute("aria-pressed", String(b.dataset.m === IMG.mode)); }
 $("#btnImg").addEventListener("click", () => {
-  const items = visible(); if (!items.length) { toast("No hay juegos que exportar"); return; }
+  const items = visible(); if (!items.length) { toast("No hay juegos que exportar", "warning"); return; }
   IMG.items = items; IMG.label = catLabel(tab); IMG.mode = view === "list" ? "list" : "grid";
   $("#imgHead").textContent = "Imagen · " + IMG.label; paintImgMode();
   const can = typeof navigator.canShare === "function" && navigator.canShare({ files: [new File([""], "a.png", { type: "image/png" })] });
@@ -844,7 +857,7 @@ $("#imgDl").addEventListener("click", () => {
 });
 $("#imgShare").addEventListener("click", async () => {
   const fs = imgFiles(); if (!fs.length) return;
-  try { await navigator.share({ files: fs, title: "Mi Biblioteca · " + IMG.label }); } catch (e) { if (e && e.name !== "AbortError") toast("No se pudo compartir; usa Descargar"); }
+  try { await navigator.share({ files: fs, title: "Mi Biblioteca · " + IMG.label }); } catch (e) { if (e && e.name !== "AbortError") toast("No se pudo compartir; usa Descargar", "error"); }
 });
 $("#dlgImg").addEventListener("close", () => {
   IMG.seq++; IMG.urls.forEach(u => URL.revokeObjectURL(u)); IMG.urls = []; IMG.blobs = [];
@@ -926,7 +939,7 @@ function openSettings() {
   getVersion().then(v => { $("#ver").textContent = v ? "Versión " + v : ""; });
 }
 $("#btnSettings").addEventListener("click", openSettings);
-$("#saveKey").addEventListener("click", () => { store.set("rawgKey", $("#apiKey").value.trim()); toast("Clave guardada"); });
+$("#saveKey").addEventListener("click", () => { store.set("rawgKey", $("#apiKey").value.trim()); toast("Clave guardada", "success"); });
 $("#exp").addEventListener("click", () => {
   const blob = new Blob([JSON.stringify({ app: "biblioteca", version: 1, exported: new Date().toISOString(), games }, null, 2)], { type: "application/json" });
   const a = h("a", { href: URL.createObjectURL(blob), download: `biblioteca-${new Date().toISOString().slice(0, 10)}.json` });
@@ -949,8 +962,8 @@ $("#file").addEventListener("change", async e => {
       playedM: Number.isInteger(g.playedY) && g.playedY >= 1970 && g.playedY <= 2100 && Number.isInteger(g.playedM) && g.playedM >= 1 && g.playedM <= 12 ? g.playedM : null,
       favorite: !!g.favorite, favRank: Number.isFinite(g.favRank) ? g.favRank : null, rank: Number.isFinite(g.rank) ? g.rank : null, notes: String(g.notes || ""), added: g.added || Date.now(), updated: g.updated || Date.now(), finished: g.finished || null }));
     if (!await ask({ title: "Importar copia", text: `Se reemplazarán tus ${games.length} juegos actuales por ${clean.length} del archivo. ¿Continuar?`, ok: "Reemplazar", danger: true })) return;
-    await DB.replaceAll(clean); games = clean; $("#dlgSet").close(); render(); toast("Importados " + clean.length);
-  } catch { toast("Archivo no válido"); }
+    await DB.replaceAll(clean); games = clean; $("#dlgSet").close(); render(); toast("Importados " + clean.length, "success");
+  } catch { toast("Archivo no válido", "error"); }
 });
 
 $("#vt").addEventListener("click", e => { const b = e.target.closest("button[data-v]"); if (!b || b.dataset.v === view) return; view = b.dataset.v; store.set("view", view); render(); });
@@ -962,7 +975,7 @@ function openMenu(id, ctx) {
   const inFav = ctx === "fav";
   $("#mTitle").textContent = g.title;
   const item = (label, fn, cls = "") => h("button", { type: "button", class: "mi " + cls, onclick: async () => { $("#dlgMenu").close(); await fn(); } }, label);
-  const save = async (msg, mutate) => { mutate(); await DB.put(g); render(); if (msg) toast(msg); };
+  const save = async (msg, mutate) => { mutate(); await DB.put(g); render(); if (msg) toast(msg, "success"); };
   const others = STATUS.filter(st => st.id !== g.status);
   const body = [
     item("Editar", () => openEdit(g.id)),
@@ -978,7 +991,7 @@ function openMenu(id, ctx) {
       ? item("Quitar de Favoritos", () => save("Quitado de Favoritos", () => { g.favorite = false; g.favRank = null; }), "danger")
       : item("Eliminar juego", async () => {
           if (!await ask({ title: "Eliminar juego", text: `¿Eliminar "${g.title}"? No se puede deshacer.`, ok: "Eliminar", danger: true })) return;
-          await DB.del(g.id); games = games.filter(x => x.id !== g.id); render(); toast("Eliminado");
+          await DB.del(g.id); games = games.filter(x => x.id !== g.id); render(); toast("Eliminado", "success");
         }, "danger")
   ];
   $("#mBody").replaceChildren(...body);
@@ -1038,7 +1051,7 @@ const reorder = (() => {
     if (ids) {
       const key = rankKey(tab), byId = new Map(games.map(g => [g.id, g])), puts = [];
       ids.forEach((id, i) => { const g = byId.get(id); if (g && g[key] !== i) { g[key] = i; puts.push(DB.put(g)); } });
-      Promise.all(puts).catch(() => toast("No se pudo guardar el orden"));
+      Promise.all(puts).catch(() => toast("No se pudo guardar el orden", "error"));
     }
     render();
   }
@@ -1171,7 +1184,7 @@ const homeDrag = (() => {
     ph.remove();
     suppress = true; setTimeout(() => { suppress = false; }, 400);
     cleanup(); render();
-    if (res) { if (res.msg) toast(res.msg); res.done.catch(() => toast("No se pudo guardar el cambio")); }
+    if (res) { if (res.msg) toast(res.msg, "success"); res.done.catch(() => toast("No se pudo guardar el cambio", "error")); }
   }
   function move(e) {
     if (!st || e.pointerId !== st.id) return;
@@ -1214,7 +1227,10 @@ $("#sort").addEventListener("change", e => { sortBy = e.target.value; store.set(
 
 /* actualizaciones de la app */
 let swReg = null, swRefreshing = false, swPending = null;
-function offerUpdate(w) { swPending = w; $("#upd").classList.remove("hidden"); }
+function offerUpdate(w) {
+  swPending = w; const u = $("#upd");
+  u.classList.remove("hidden", "enter"); void u.offsetWidth; u.classList.add("enter"); placeUpd();
+}
 function getVersion() {
   const c = "serviceWorker" in navigator && navigator.serviceWorker.controller;
   if (!c) return Promise.resolve(null);
@@ -1239,23 +1255,26 @@ function initSW() {
   navigator.serviceWorker.addEventListener("controllerchange", () => { if (swRefreshing) location.reload(); });
 }
 $("#updGo").addEventListener("click", () => {
-  if (document.querySelector("dialog[open]")) { toast("Cierra la ventana abierta y vuelve a pulsar"); return; }
+  if ($("#dlgEdit").open || $("#dlgAdd").open) { toast("Guarda o cierra la ficha y vuelve a pulsar", "warning"); return; }
   const w = swPending || (swReg && swReg.waiting); if (!w) { $("#upd").classList.add("hidden"); return; }
   swRefreshing = true; w.postMessage({ type: "SKIP_WAITING" });
 });
 $("#updX").addEventListener("click", () => $("#upd").classList.add("hidden"));
+// Mientras el aviso está visible la página baja su altura para que no tape la cabecera (ajustes, vista…).
+new ResizeObserver(() => document.documentElement.style.setProperty("--upd-h", $("#upd").offsetHeight + "px")).observe($("#upd"));
+$("#upd").addEventListener("animationend", e => e.currentTarget.classList.remove("enter"));
 $("#chk").addEventListener("click", async () => {
-  if (!swReg) { toast("Las actualizaciones no están disponibles aquí"); return; }
-  try { await swReg.update(); } catch { toast("No se pudo comprobar. ¿Sin conexión?"); return; }
+  if (!swReg) { toast("Las actualizaciones no están disponibles aquí", "info"); return; }
+  try { await swReg.update(); } catch { toast("No se pudo comprobar. ¿Sin conexión?", "warning"); return; }
   if (swReg.waiting) { offerUpdate(swReg.waiting); $("#dlgSet").close(); }
-  else if (swReg.installing) toast("Descargando la versión nueva…");
-  else toast("Ya tienes la última versión");
+  else if (swReg.installing) toast("Descargando la versión nueva…", "info");
+  else toast("Ya tienes la última versión", "success");
 });
 
 /* arranque */
 (async () => {
   try { await DB.open(); games = await DB.all(); }
-  catch { toast("No se pudo abrir el almacenamiento local"); }
+  catch { toast("No se pudo abrir el almacenamiento local", "error"); }
   history.replaceState({ tab: "home" }, "");
   render();
   initSW();
