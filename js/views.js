@@ -73,7 +73,7 @@ function renderHeader() {
   $("#tools").classList.toggle("hidden", home);
   $("#vt").classList.toggle("hidden", home);
   $("#btnImg").classList.toggle("hidden", home);
-  $("#btnRew").classList.toggle("hidden", !rewindYears().length);
+  $("#btnRew").classList.toggle("hidden", !home || !rewindYears().length);   // solo en Inicio
   for (const b of $$("#vt button")) b.setAttribute("aria-pressed", String(b.dataset.v === view));
   if (home) return;
   const sorts = sortsFor(tab), sel = $("#sort");
@@ -92,8 +92,22 @@ function renderHome() {
     return h("section", { class: "cat", "aria-label": catLabel(id) },
       h("button", { class: "cat-h", onclick: () => go(id), "aria-label": `Ver ${catLabel(id)}` },
         h("span", { class: "cat-t" }, catLabel(id)), h("span", { class: "cat-n" }, String(items.length)), h("span", { class: "cat-go", "aria-hidden": "true" }, "›")),
-      strip);
+      stripScroller(strip));
   }));
+}
+/** Envuelve un carrusel con flechas para desplazarlo con el ratón (solo se ven con puntero fino). */
+function stripScroller(strip) {
+  const wrap = h("div", { class: "strip-wrap" }, strip);
+  const go = dir => h("button", { class: "strip-nav " + (dir < 0 ? "prev" : "next"), type: "button", tabindex: "-1", "aria-hidden": "true",
+    onclick: () => strip.scrollBy({ left: dir * Math.max(200, strip.clientWidth * .8), behavior: "smooth" }) }, dir < 0 ? "‹" : "›");
+  wrap.append(go(-1), go(1));
+  const update = () => {
+    wrap.classList.toggle("can-prev", strip.scrollLeft > 4);
+    wrap.classList.toggle("can-next", strip.scrollLeft + strip.clientWidth < strip.scrollWidth - 4);
+  };
+  strip.addEventListener("scroll", update, { passive: true });
+  new ResizeObserver(update).observe(strip);
+  return wrap;
 }
 function renderList() {
   const list = $("#list"), cols = colsOf(view);

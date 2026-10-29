@@ -12,7 +12,7 @@ Es una aplicación web que se instala en el móvil como cualquier otra app. Func
 
 La biblioteca se reparte en tres listas según el momento en que está cada juego: **Backlog** (los que tienes pendientes), **Jugando** y **Jugados**. Aparte está **Favoritos**, donde aparece cualquier juego que marques con el corazón, esté en la lista que esté.
 
-La pantalla de **Inicio** muestra una fila por lista, como en una tienda de juegos. Si mantienes pulsado un juego y lo arrastras a otra fila, cambia de lista. Así, por ejemplo, pasas un juego de Jugando a Jugados sin entrar en su ficha.
+La pantalla de **Inicio** muestra una fila por lista, como en una tienda de juegos. Si mantienes pulsado un juego y lo arrastras a otra fila, cambia de lista. Así, por ejemplo, pasas un juego de Jugando a Jugados sin entrar en su ficha. Cada fila se desliza con el dedo y, en el ordenador, con unas flechas que aparecen al pasar el ratón por encima. Además, al pasar el ratón por una portada se inclina y brilla como un cromo.
 
 ### Añadir juegos
 
@@ -47,7 +47,7 @@ Cada lista recuerda el orden que elegiste, y las filas de Inicio usan ese mismo 
 
 Cada año tiene su resumen: cuántos juegos terminaste y cuántas horas jugaste, tus tres juegos mejor valorados y los tres a los que más horas dedicaste. También verás cuántos juegos terminaste cada mes, en qué plataformas jugaste y un calendario con todos los juegos del año.
 
-Solo cuentan los juegos de Jugados que tienen indicado el año en que los jugaste. El Rewind del año en curso aparece en Inicio a partir del 1 de diciembre. Los de años anteriores están siempre disponibles desde el botón del reloj, en la parte de arriba de la pantalla.
+Solo cuentan los juegos de Jugados que tienen indicado el año en que los jugaste. El Rewind del año en curso aparece en Inicio a partir del 1 de diciembre. Los de años anteriores están siempre disponibles desde el botón del reloj, en la parte de arriba de Inicio.
 
 ### Compartir y guardar
 
@@ -119,7 +119,7 @@ Cada prueba levanta su propio servidor local y llega a simular las respuestas de
 
 ### Publicar una versión nueva
 
-Antes de subir cambios hay que **aumentar `VERSION` en `sw.js`** (por ejemplo, de `1.3.0` a `1.3.1`). Ese número es lo que hace que el navegador detecte que hay algo nuevo y muestre el aviso. Sin cambiarlo, quien ya tenga la app instalada seguirá con la versión anterior.
+Antes de subir cambios hay que **aumentar `VERSION` en `sw.js`** (por ejemplo, de `1.4.0` a `1.4.1`). Ese número es lo que hace que el navegador detecte que hay algo nuevo y muestre el aviso. Sin cambiarlo, quien ya tenga la app instalada seguirá con la versión anterior.
 
 Si has añadido o renombrado algún archivo, inclúyelo también en la lista `SHELL` de `sw.js`. Así se guarda en el dispositivo y la app sigue funcionando sin conexión.
 
@@ -150,6 +150,7 @@ js/rewind.js          el Rewind
 js/share-image.js     imagen de la lista para compartir
 js/settings.js        ajustes y copias de seguridad
 js/drag.js            arrastrar y soltar
+js/foil.js            efecto de cromo al pasar el ratón por una portada
 js/updates.js         aviso de versión nueva
 js/main.js            arranque
 ```

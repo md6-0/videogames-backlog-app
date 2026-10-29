@@ -70,9 +70,19 @@ function drawRating(c, r, x, y, w, hh, fs) {
   c.fillStyle = "#0b141d"; c.font = `800 ${fs}px ${FONT}`; c.textAlign = "center"; c.textBaseline = "middle";
   c.fillText(fmtRating(r), x + w / 2, y + hh / 2 + 1);
 }
+/** Sombra suave y filo claro: el mismo acabado de las tarjetas de la app. */
+const CARD_R = 16;
+function cardShadow(c, x, y, w, hh, fill) {
+  c.save(); c.shadowColor = "rgba(0,0,0,.45)"; c.shadowBlur = 24; c.shadowOffsetY = 8;
+  roundRect(c, x, y, w, hh, CARD_R); c.fillStyle = fill; c.fill(); c.restore();
+}
+function cardEdge(c, x, y, w, hh) {
+  c.save(); roundRect(c, x + 1, y + 1, w - 2, hh - 2, CARD_R - 1); c.lineWidth = 2; c.strokeStyle = "rgba(255,255,255,.1)"; c.stroke(); c.restore();
+}
 function drawGridItem(c, g, x, y, cw, ch) {
-  drawCover(c, IMG.bmp.get(g.id) || null, g, x, y, cw, ch, 10);
-  c.save(); roundRect(c, x, y, cw, ch, 10); c.clip();
+  cardShadow(c, x, y, cw, ch, cssVar("--surface2"));
+  drawCover(c, IMG.bmp.get(g.id) || null, g, x, y, cw, ch, CARD_R);
+  c.save(); roundRect(c, x, y, cw, ch, CARD_R); c.clip();
   const shade = c.createLinearGradient(0, y + ch * .5, 0, y + ch);
   shade.addColorStop(0, "rgba(0,0,0,0)"); shade.addColorStop(1, "rgba(0,0,0,.9)");
   c.fillStyle = shade; c.fillRect(x, y + ch * .5, cw, ch * .5); c.restore();
@@ -80,10 +90,11 @@ function drawGridItem(c, g, x, y, cw, ch) {
   const lines = wrapText(c, g.title, cw - 24, 2);
   lines.forEach((l, k) => c.fillText(l, x + 12, y + ch - 14 - (lines.length - 1 - k) * 28));
   if (g.rating != null) drawRating(c, g.rating, x + cw - 62, y + 8, 54, 36, 22);
+  cardEdge(c, x, y, cw, ch);
 }
 function drawListItem(c, g, y, colors) {
   const { W, P, ROW_H } = LAYOUT;
-  roundRect(c, P, y, W - 2 * P, ROW_H, 14); c.fillStyle = colors.surface; c.fill();
+  cardShadow(c, P, y, W - 2 * P, ROW_H, colors.surface);
   drawCover(c, IMG.bmp.get(g.id) || null, g, P + 16, y + 16, 120, 168, 8);
   const tx = P + 160, maxW = W - P - 16 - (g.rating != null ? 104 : 0) - tx;
   c.textAlign = "left"; c.textBaseline = "alphabetic";
@@ -96,6 +107,7 @@ function drawListItem(c, g, y, colors) {
   if (meta) { c.fillText(fitText(c, meta, maxW), tx, ty); ty += 36; }
   if (g.platforms) c.fillText(fitText(c, g.platforms, maxW), tx, ty);
   if (g.rating != null) drawRating(c, g.rating, W - P - 16 - 88, y + 16, 88, 56, 32);
+  cardEdge(c, P, y, W - 2 * P, ROW_H);
 }
 function drawPage(page, pageNo, pages, colors) {
   const { W, P, HEAD, COLS, GAP, ROW_H } = LAYOUT, grid = IMG.mode === "grid";

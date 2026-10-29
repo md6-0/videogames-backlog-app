@@ -2,7 +2,7 @@
    Al publicar una versión nueva hay que cambiar VERSION: así el navegador detecta el cambio y la app avisa. */
 importScripts("js/rawg-image.js");   // rawgSized()
 
-const VERSION = "1.3.0";
+const VERSION = "1.4.0";
 const CACHE = "biblioteca-" + VERSION;          // la app (se renueva con cada versión)
 const COVERS = "biblioteca-portadas-2";         // portadas (sobrevive a las actualizaciones)
 const MAX_COVERS = 800;
@@ -11,7 +11,7 @@ const SHELL = [
   "./css/app.css", "./css/rewind.css",
   "./js/rawg-image.js", "./js/util.js", "./js/db.js", "./js/state.js", "./js/model.js", "./js/ui.js", "./js/views.js",
   "./js/edit.js", "./js/rawg.js", "./js/add.js", "./js/rewind.js", "./js/share-image.js", "./js/settings.js",
-  "./js/drag.js", "./js/updates.js", "./js/main.js"
+  "./js/drag.js", "./js/foil.js", "./js/updates.js", "./js/main.js"
 ];
 
 // Sin skipWaiting automático: la página avisa y el usuario decide cuándo activar la versión nueva.

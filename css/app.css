@@ -17,7 +17,7 @@
   --pad: 16px; --rail: 0px;       /* margen lateral / ancho de la barra lateral */
   --tw: 120px; --th: 164px;       /* tamaño de las portadas en los carruseles */
   --sheet-pad: 16px; --sheet-pb: 20px;
-  --gutter: max(var(--pad), calc((100vw - var(--rail) - 1320px) / 2));
+  --gutter: var(--pad);           /* el contenido ocupa todo el ancho disponible */
 }
 
 /* ---------- Base ---------- */
@@ -138,7 +138,7 @@ nav.tabs button[aria-selected=true] { color: var(--accent); }
 /* páginas de categoría */
 .list { display: flex; flex-direction: column; gap: 10px; }
 .list.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
-.list.cols { display: grid !important; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)) !important; }
+.list.cols:not(.hidden) { display: grid !important; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)) !important; }
 .list.grid .tile { flex: none; width: 100%; height: auto; aspect-ratio: 3 / 4.1; }
 
 /* Inicio: una fila deslizable por categoría */
@@ -148,8 +148,39 @@ nav.tabs button[aria-selected=true] { color: var(--accent); }
 .cat-n { flex: 1; color: var(--muted); font-size: 14px; }
 .cat-go { color: var(--muted); font-size: 22px; line-height: 1; }
 .cat-empty { margin: 0; flex: 1; padding: 14px; border: 1px dashed var(--line); border-radius: 12px; color: var(--muted); font-size: 14px; }
-.strip { display: flex; gap: 10px; overflow-x: auto; padding: 0 var(--gutter) 4px; scroll-snap-type: x proximity; scroll-padding: 0 var(--gutter); scrollbar-width: none; overscroll-behavior-x: contain; transition: background-color .15s ease, outline-color .15s ease; }
+.strip { display: flex; gap: 10px; overflow-x: auto; padding: 6px var(--gutter) 10px; margin: -6px 0 -6px; scroll-snap-type: x proximity; scroll-padding: 0 var(--gutter); scrollbar-width: none; overscroll-behavior-x: contain; transition: background-color .15s ease, outline-color .15s ease; }
 .strip::-webkit-scrollbar { display: none; }
+/* Flechas de los carruseles: solo con ratón (en pantallas táctiles se desliza con el dedo) */
+.strip-wrap { position: relative; }
+.strip-nav { display: none; }
+@media (hover: hover) and (pointer: fine) {
+  .strip-nav {
+    display: grid; place-items: center; position: absolute; top: 50%; z-index: 2; width: 44px; height: 44px; margin-top: -26px;
+    border-radius: 50%; background: rgba(16,24,34,.92); color: var(--text); border: 1px solid var(--line);
+    box-shadow: 0 4px 14px rgba(0,0,0,.5); font-size: 26px; line-height: 1; padding-bottom: 3px;
+    opacity: 0; pointer-events: none; transition: opacity .18s ease, background-color .18s ease;
+  }
+  .strip-nav.prev { left: calc(var(--gutter) - 8px); }
+  .strip-nav.next { right: calc(var(--gutter) - 8px); }
+  .strip-wrap.can-prev:hover .prev, .strip-wrap.can-next:hover .next,
+  .strip-wrap.can-prev .prev:focus-visible, .strip-wrap.can-next .next:focus-visible { opacity: 1; pointer-events: auto; }
+  .strip-nav:hover { background: var(--surface2); }
+  .dnd .strip-nav { display: none; }
+}
+
+/* Efecto cromo (js/foil.js): inclinación y reflejos al pasar el ratón */
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .foil { z-index: 3; transform: perspective(800px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) scale(1.035); transition: transform .12s ease-out, box-shadow .2s ease; box-shadow: 0 16px 34px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.14); }
+  .foil::after {
+    content: ""; position: absolute; inset: 0; z-index: 4; pointer-events: none; border-radius: inherit; mix-blend-mode: color-dodge;
+    background:
+      radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(255,255,255,.34), rgba(255,255,255,0) 52%),
+      linear-gradient(115deg, rgba(255,255,255,0) 14%, rgba(255,120,200,.30) 28%, rgba(255,225,110,.28) 40%, rgba(110,255,205,.28) 52%, rgba(102,192,244,.34) 64%, rgba(255,255,255,0) 80%);
+    background-size: 100% 100%, 280% 280%; background-position: 0 0, var(--mx, 50%) var(--my, 50%);
+    animation: foilIn .18s ease-out;
+  }
+}
+@keyframes foilIn { from { opacity: 0; } to { opacity: 1; } }
 
 /* arrastrar y soltar */
 .list.sortable .card, .list.sortable .tile, #home .tile { user-select: none; -webkit-user-select: none; }
@@ -284,7 +315,7 @@ main.enter { animation: pageIn .22s ease-out; }
   *, ::before, ::after { animation-duration: .01ms !important; animation-delay: 0s !important; transition-duration: .01ms !important; }
 }
 @media (hover: hover) {
-  .card:hover, .tile:hover { filter: brightness(1.12); }
+  .tile.more:hover { filter: brightness(1.12); }
   nav.tabs button:hover { color: var(--text); }
   .cat-h:hover .cat-go { color: var(--accent); }
 }
@@ -340,11 +371,12 @@ main.enter { animation: pageIn .22s ease-out; }
   nav.tabs button { flex: none; height: 86px; }
   .fab { bottom: 28px; right: 28px; }
   .toast { bottom: 36px; }
+  .tools select { max-width: 340px; }
 }
 @media (min-width: 1100px) {
   :root { --tw: 192px; --th: 262px; }
   .list.grid { grid-template-columns: repeat(auto-fill, minmax(176px, 1fr)); }
 }
 @media (min-width: 1300px) {
-  .list:not(.grid) { grid-template-columns: repeat(3, 1fr); }
+  .list:not(.grid) { grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); }
 }

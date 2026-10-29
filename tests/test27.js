@@ -15,7 +15,8 @@ const seed = page => page.evaluate(async () => { const mk = (id, t, o) => ({ id,
     const opts = await page.$$eval('#rwYear option', o => o.map(x => x.value)); ok(when + ': años ' + years, opts.join() === years, opts.join());
     ok(when + ': abre en el más reciente', (await page.inputValue('#rwYear')) === years.split(',')[0]);
     await page.click('#dlgRew [data-close]'); await page.waitForTimeout(300);
-    await page.click('#tabs button:has-text("Backlog")'); ok(when + ': botón también en otras pantallas', await page.locator('#btnRew').isVisible());
+    await page.click('#tabs button:has-text("Backlog")'); ok(when + ': botón solo en Inicio (oculto en otras pantallas)', await page.locator('#btnRew').isHidden());
+    await page.click('#tabs button:has-text("Inicio")'); ok(when + ': botón visible al volver a Inicio', await page.locator('#btnRew').isVisible());
     ok(when + ': sin errores', errs.length === 0, errs.join('|')); await ctx.close();
   }
   const ctx = await b.newContext({ ...devices['Pixel 7'] }); const page = await ctx.newPage(); await page.clock.setFixedTime(new Date('2026-10-29T12:00:00')); await page.goto('http://localhost:8115/'); await page.waitForSelector('#tabs button');
