@@ -1,7 +1,7 @@
-const VERSION = "v36";
+const VERSION = "v37";
 const CACHE = "biblioteca-" + VERSION;
 // Portadas: caché propia, sin versión, para que sobreviva a las actualizaciones de la app.
-const COVERS = "biblioteca-portadas";
+const COVERS = "biblioteca-portadas-2";
 const MAX_COVERS = 800;
 const SHELL = ["./", "./index.html", "./manifest.webmanifest", "./icon-192.png", "./icon-512.png"];
 
@@ -17,8 +17,8 @@ self.addEventListener("message", e => {
   if (d.type === "SKIP_WAITING") self.skipWaiting();
   if (d.type === "GET_VERSION" && e.ports[0]) e.ports[0].postMessage(VERSION);
 });
-// RAWG sirve la misma imagen recortada a 600x400 cambiando /media/ por /media/crop/600/400/ (mucho más ligera).
-const small = u => u.replace(/^(https:\/\/media\.rawg\.io\/media\/)(?!crop\/|resize\/)/, "$1crop/600/400/");
+// RAWG sirve la misma imagen a 1280 px de ancho cambiando /media/ por /media/resize/1280/-/ (mucho más ligera).
+const small = u => u.replace(/^(https:\/\/media\.rawg\.io\/media\/)(?!crop\/|resize\/)/, "$1resize/1280/-/");
 async function cover(req) {
   const c = await caches.open(COVERS);
   const hit = await c.match(req.url);

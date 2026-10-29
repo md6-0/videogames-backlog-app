@@ -745,7 +745,7 @@ async function loadCover(g) {
   let b = null;
   try {
     const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 10000);
-    const sm = u.replace(/^(https:\/\/media\.rawg\.io\/media\/)(?!crop\/|resize\/)/, "$1crop/600/400/");
+    const sm = u.replace(/^(https:\/\/media\.rawg\.io\/media\/)(?!crop\/|resize\/)/, "$1resize/1280/-/");
     let r = null;
     if (sm !== u) { try { r = await fetch(sm, { mode: "cors", signal: ctl.signal }); } catch { r = null; } }
     if (!r || !r.ok) r = await fetch(u, { mode: "cors", cache: "no-cache", signal: ctl.signal });
