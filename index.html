@@ -270,6 +270,7 @@ main.enter{animation:pageIn .22s ease-out}
 @keyframes rwup{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 .rw-h{color:#ffd166}
 .rw-row .med{font-size:22px;width:28px;text-align:center;flex:none}
+.rw-row .hrs{color:var(--muted);font-size:13px;white-space:nowrap}
 .rw-row .tag{padding:2px 8px;border-radius:8px;font-size:12px;font-weight:800;color:#0f1115;min-width:30px;text-align:center}
 .rw-months i{background:linear-gradient(180deg,#ff6ec7,#66c0f4)}.rw-months i.top{background:linear-gradient(180deg,#ffd166,#ff9e3d);box-shadow:0 0 12px rgba(255,209,102,.6)}
 .rw-bar i{background:linear-gradient(90deg,#66c0f4,#b88cff)}
@@ -614,7 +615,7 @@ function paintRewind() {
   const sec = (...c) => h("div", { class: "rw-sec", style: `animation-delay:${secN++ * 70}ms` }, ...c);
   const parts = [sec(h("div", { class: "rw-tot" }, box("🎮", String(st.n), st.n === 1 ? "juego" : "juegos"), box("⏱️", st.hrs ? fmtHours(st.hrs) : "—", "horas"), box("⭐", st.avg == null ? "—" : fmtRating(Math.round(st.avg * 10) / 10), "nota media")))];
   const best = list.filter(g => g.rating != null).sort((a, b) => b.rating - a.rating || (b.hours || 0) - (a.hours || 0)).slice(0, 3);
-  if (best.length) parts.push(sec(h("h3", { class: "rw-h" }, "Los mejores valorados"), ...rwList(best, g => rwTag(g.rating))));
+  if (best.length) parts.push(sec(h("h3", { class: "rw-h" }, "Los mejor valorados"), ...rwList(best, g => rwTag(g.rating))));
   const long = list.filter(g => g.hours).sort((a, b) => b.hours - a.hours).slice(0, 3);
   if (long.length) parts.push(sec(h("h3", { class: "rw-h" }, "Los más jugados"), ...rwList(long, g => h("span", { class: "v" }, fmtHours(g.hours)))));
   const per = Array(12).fill(0); let noMonth = 0;
@@ -632,7 +633,7 @@ function paintRewind() {
   for (const g of byM) {
     const m = playedYM(g)[1] || 0;
     if (m !== last) { last = m; cal.push(h("h4", { class: "rw-m" }, m ? MONTHS[m - 1][0].toUpperCase() + MONTHS[m - 1].slice(1) : "Sin mes")); }
-    cal.push(h("div", { class: "rw-row" }, rwThumb(g), h("span", { class: "n" }, g.title), g.rating != null ? rwTag(g.rating) : null));
+    cal.push(h("div", { class: "rw-row" }, rwThumb(g), h("span", { class: "n" }, g.title), g.hours != null ? h("span", { class: "hrs" }, fmtHours(g.hours)) : null, g.rating != null ? rwTag(g.rating) : null));
   }
   parts.push(sec(...cal));
   body.replaceChildren(...parts);
