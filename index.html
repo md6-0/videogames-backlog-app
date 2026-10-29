@@ -291,6 +291,9 @@ body::before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;ba
 <header>
   <div class="top">
     <h1 id="ttl">Mi Biblioteca</h1>
+    <button class="icon-btn hidden" id="btnRew" aria-label="Ver los Rewind de otros años" title="Rewind de otros años">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 8v4l3 2"/></svg>
+    </button>
     <button class="icon-btn hidden" id="btnImg" aria-label="Crear imagen de la lista" title="Crear imagen de la lista">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="M21 16l-5-5-8 8"/></svg>
     </button>
@@ -609,7 +612,9 @@ function tileEl(g, showFav = false) {
 // Rewind: resumen por año de los juegos terminados (Jugados con año indicado en "cuándo lo jugué"; sin fecha no cuenta).
 const playedYM = g => g.playedY ? [g.playedY, g.playedM || null] : [null, null];
 const gamesOfYear = y => games.filter(g => g.status === "played" && playedYM(g)[0] === y);
-const rewindYears = () => [...new Set(games.filter(g => g.status === "played").map(g => playedYM(g)[0]).filter(Boolean))].sort((a, b) => b - a);
+// El Rewind de un año solo está disponible a partir del 1 de diciembre de ese año; los años anteriores siempre.
+const rewindOpen = y => { const n = new Date(); return y < n.getFullYear() || (y === n.getFullYear() && n.getMonth() === 11); };
+const rewindYears = () => [...new Set(games.filter(g => g.status === "played").map(g => playedYM(g)[0]).filter(y => y && rewindOpen(y)))].sort((a, b) => b - a);
 function rewindStats(list) {
   const hrs = list.reduce((a, g) => a + (g.hours || 0), 0), rated = list.filter(g => g.rating != null);
   return { n: list.length, hrs, avg: rated.length ? rated.reduce((a, g) => a + g.rating, 0) / rated.length : null };
@@ -660,11 +665,11 @@ $("#rwYear").addEventListener("change", paintRewind);
 function renderHome() {
   const box = $("#home"); box.replaceChildren();
   if (!games.length) { box.append(h("div", { class: "empty" }, h("b", {}, "Tu biblioteca está vacía"), "Pulsa + para añadir tu primer juego.")); return; }
-  const ys = rewindYears();
-  if (ys.length) {
-    const st = rewindStats(gamesOfYear(ys[0]));
-    box.append(h("button", { class: "rw-card", onclick: () => openRewind(ys[0]), "aria-label": `Ver el Rewind de ${ys[0]}` },
-      h("span", {}, h("b", {}, `Rewind ${ys[0]}`), h("small", {}, `${st.n} ${st.n === 1 ? "juego" : "juegos"}${st.hrs ? " · " + fmtHours(st.hrs) : ""}`)), h("span", { class: "cat-go", "aria-hidden": "true" }, "›")));
+  const cy = new Date().getFullYear();
+  if (rewindYears().includes(cy)) {
+    const st = rewindStats(gamesOfYear(cy));
+    box.append(h("button", { class: "rw-card", onclick: () => openRewind(cy), "aria-label": `Ver el Rewind de ${cy}` },
+      h("span", {}, h("b", {}, `Rewind ${cy}`), h("small", {}, `${st.n} ${st.n === 1 ? "juego" : "juegos"}${st.hrs ? " · " + fmtHours(st.hrs) : ""}`)), h("span", { class: "cat-go", "aria-hidden": "true" }, "›")));
   }
   for (const id of CATS) {
     const items = inCat(id).sort(byRank(rankKey(id)));
@@ -691,6 +696,7 @@ function render() {
   const home = tab === "home";
   $("#home").classList.toggle("hidden", !home); $("#list").classList.toggle("hidden", home); $("#tools").classList.toggle("hidden", home);
   $("#ttl").replaceChildren(home ? "Mi Biblioteca" : catLabel(tab), home ? "" : h("small", {}, " " + inCat(tab).length));
+  $("#btnRew").classList.toggle("hidden", !rewindYears().length);
   $("#vt").classList.toggle("hidden", home); $("#btnImg").classList.toggle("hidden", home);
   for (const b of document.querySelectorAll("#vt button")) b.setAttribute("aria-pressed", String(b.dataset.v === view));
   if (home) { renderHome(); return; }
@@ -1081,6 +1087,7 @@ function openSettings() {
   getVersion().then(v => { $("#ver").textContent = v ? "Versión " + v : ""; });
 }
 $("#btnSettings").addEventListener("click", openSettings);
+$("#btnRew").addEventListener("click", () => openRewind());
 $("#saveKey").addEventListener("click", () => { store.set("rawgKey", $("#apiKey").value.trim()); toast("Clave guardada", "success"); });
 $("#exp").addEventListener("click", () => {
   const blob = new Blob([JSON.stringify({ app: "biblioteca", version: 1, exported: new Date().toISOString(), games }, null, 2)], { type: "application/json" });
