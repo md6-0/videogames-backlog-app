@@ -20,3 +20,9 @@ const setCols = (mode, n) => store.set(COLS_KEY[mode], String(n));
 /* Clave de la API de RAWG (opcional: sin ella se añaden juegos a mano). */
 const rawgKey = () => store.get("rawgKey") || "";
 const setRawgKey = k => store.set("rawgKey", k);
+
+/* Copias de seguridad: cuándo se hizo la última y hasta cuándo se ha pospuesto el recordatorio. */
+const lastBackupAt = () => Number(store.get("lastBackup")) || 0;
+const backupSnoozedUntil = () => Number(store.get("backupSnooze")) || 0;
+const markBackup = () => store.set("lastBackup", String(Date.now()));
+const snoozeBackup = ms => store.set("backupSnooze", String(Date.now() + ms));

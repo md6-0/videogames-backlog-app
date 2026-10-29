@@ -4,7 +4,7 @@
 function openSettings() {
   for (const mode of Object.keys(COLS_KEY)) $("#" + COLS_KEY[mode]).value = String(colsOf(mode));
   $("#apiKey").value = rawgKey();
-  paintStats();
+  paintStats(); paintLastBackup();
   openDlg($("#dlgSet"));
   getVersion().then(v => { $("#ver").textContent = v ? "Versión " + v : ""; });
 }
@@ -22,6 +22,35 @@ function paintStats() {
 function exportBackup() {
   const data = { app: "biblioteca", version: 1, exported: new Date().toISOString(), games };
   download(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }), `biblioteca-${today()}.json`);
+  markBackup();
+  paintLastBackup();
+  if (tab === "home") render();   // quita el recordatorio de Inicio
+}
+function paintLastBackup() {
+  const t = lastBackupAt();
+  $("#lastBackup").textContent = t
+    ? "Última copia: " + new Date(t).toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" }) + "."
+    : "Aún no has hecho ninguna copia.";
+}
+
+/* ---------- Recordatorio de copia en Inicio ---------- */
+// Aparece si han pasado 30 días desde la última copia (o, si no hay ninguna, desde el primer juego añadido).
+// "Más tarde" lo oculta una semana.
+const BACKUP_EVERY_DAYS = 30, BACKUP_SNOOZE_DAYS = 7, DAY_MS = 864e5;
+function backupDaysOverdue() {
+  if (!games.length || Date.now() < backupSnoozedUntil()) return null;
+  const since = lastBackupAt() || Math.min(...games.map(g => g.added || Date.now()));
+  const days = Math.floor((Date.now() - since) / DAY_MS);
+  return days >= BACKUP_EVERY_DAYS ? days : null;
+}
+function backupReminder() {
+  const days = backupDaysOverdue(); if (days == null) return null;
+  const text = lastBackupAt() ? `Hace ${days} días de tu última copia de seguridad.` : "Aún no has hecho ninguna copia de seguridad.";
+  return h("div", { class: "bk-card", role: "status" },
+    h("span", {}, h("b", {}, "Guarda una copia"), h("small", {}, text + " Si se borran los datos del navegador, perderías tu biblioteca.")),
+    h("div", { class: "bk-btns" },
+      h("button", { class: "btn small", onclick: () => { snoozeBackup(BACKUP_SNOOZE_DAYS * DAY_MS); render(); } }, "Más tarde"),
+      h("button", { class: "btn small primary", onclick: exportBackup }, "Exportar")));
 }
 async function importBackup(file) {
   let list;

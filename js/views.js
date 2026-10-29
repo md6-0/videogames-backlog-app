@@ -84,7 +84,7 @@ function renderHeader() {
 function renderHome() {
   const box = $("#home");
   if (!games.length) { box.replaceChildren(h("div", { class: "empty" }, h("b", {}, "Tu biblioteca está vacía"), "Pulsa + para añadir tu primer juego.")); return; }
-  box.replaceChildren(rewindCard() ?? "", ...CATS.map(id => {
+  box.replaceChildren(backupReminder() ?? "", rewindCard() ?? "", ...CATS.map(id => {
     const items = sortedCat(id);
     const strip = h("div", { class: "strip", "data-cat": id }, ...items.slice(0, HOME_MAX).map(g => tileEl(g, id !== "fav")));
     if (!items.length) strip.append(h("p", { class: "cat-empty" }, EMPTY_MSG[id][1]));

@@ -2,7 +2,7 @@
    Al publicar una versión nueva hay que cambiar VERSION: así el navegador detecta el cambio y la app avisa. */
 importScripts("js/rawg-image.js");   // rawgSized()
 
-const VERSION = "1.0.2";
+const VERSION = "1.1.0";
 const CACHE = "biblioteca-" + VERSION;          // la app (se renueva con cada versión)
 const COVERS = "biblioteca-portadas-2";         // portadas (sobrevive a las actualizaciones)
 const MAX_COVERS = 800;

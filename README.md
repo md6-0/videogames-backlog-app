@@ -51,7 +51,7 @@ Solo cuentan los juegos de Jugados que tienen indicado el año en que los jugast
 
 Desde cualquier lista puedes crear una imagen con los juegos que estás viendo, en cuadrícula o en lista, para compartirla o descargarla.
 
-En los ajustes puedes **exportar** toda tu biblioteca a un archivo y **importarla** después, en el mismo móvil o en otro.
+En los ajustes puedes **exportar** toda tu biblioteca a un archivo y **importarla** después, en el mismo móvil o en otro. Si pasa un mes sin que hagas una copia, Inicio te lo recuerda.
 
 ---
 
@@ -104,7 +104,7 @@ Para publicarla vale cualquier hosting estático con HTTPS. Con GitHub Pages: *S
 
 ### Publicar una versión nueva
 
-Antes de subir cambios hay que **aumentar `VERSION` en `sw.js`** (por ejemplo, de `1.0.2` a `1.0.3`). Ese número es lo que hace que el navegador detecte que hay algo nuevo y muestre el aviso. Sin cambiarlo, quien ya tenga la app instalada seguirá con la versión anterior.
+Antes de subir cambios hay que **aumentar `VERSION` en `sw.js`** (por ejemplo, de `1.1.0` a `1.1.1`). Ese número es lo que hace que el navegador detecte que hay algo nuevo y muestre el aviso. Sin cambiarlo, quien ya tenga la app instalada seguirá con la versión anterior.
 
 Si has añadido o renombrado algún archivo, inclúyelo también en la lista `SHELL` de `sw.js`. Así se guarda en el dispositivo y la app sigue funcionando sin conexión.
 
@@ -175,7 +175,7 @@ Este es el formato de cada juego, tanto en el dispositivo como en las copias de 
 | `rank`, `favRank` | posición en tu orden manual, en su lista y en Favoritos |
 | `added`, `updated`, `finished` | cuándo se añadió, cuándo se modificó y cuándo se terminó |
 
-Las preferencias (vista, orden de cada lista, columnas y clave de RAWG) se guardan aparte, en el `localStorage` del navegador.
+Las preferencias (vista, orden de cada lista, columnas, clave de RAWG y fecha de la última copia) se guardan aparte, en el `localStorage` del navegador.
 
 ### Ampliar la app
 
