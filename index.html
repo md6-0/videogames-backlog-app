@@ -253,6 +253,7 @@ main.enter{animation:pageIn .22s ease-out}
 .rw-months{display:grid;grid-template-columns:repeat(12,1fr);gap:4px;align-items:end;height:120px}
 .rw-months div{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;font-size:11px;color:var(--muted)}
 .rw-months i{display:block;width:100%;background:var(--accent);border-radius:2px 2px 0 0;min-height:2px;margin-bottom:3px}.rw-months em{font-style:normal;color:var(--text);font-size:11px}
+.rw-m{margin:12px 0 2px;font-size:13px;color:var(--muted);font-weight:600}button.rw-row{width:100%;text-align:left}
 .rw-bar{display:flex;align-items:center;gap:8px;margin:5px 0;font-size:14px}.rw-bar span:first-child{width:96px;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rw-bar i{display:block;height:10px;background:var(--accent);border-radius:2px}.rw-bar span:last-child{color:var(--muted)}
 </style>
 </head>
@@ -603,6 +604,15 @@ function paintRewind() {
   if (pls.length) parts.push(h("h3", { class: "rw-h" }, "Plataformas"), ...pls.map(([p, n]) => h("div", { class: "rw-bar" }, h("span", {}, p), h("i", { style: `width:${Math.max(4, Math.round(n / pm * 100))}px` }), h("span", {}, String(n)))));
   const nop = list.filter(g => !splitPlats(g.platforms).length).length;
   if (nop) parts.push(h("p", { class: "note" }, `${nop} sin plataforma indicada.`));
+  parts.push(h("h3", { class: "rw-h" }, `Todos los juegos (${list.length})`));
+  const byM = [...list].sort((a, b) => (playedYM(a)[1] || 13) - (playedYM(b)[1] || 13) || a.title.localeCompare(b.title, "es"));
+  let last = -1;
+  for (const g of byM) {
+    const m = playedYM(g)[1] || 0;
+    if (m !== last) { last = m; parts.push(h("h4", { class: "rw-m" }, m ? MONTHS[m - 1][0].toUpperCase() + MONTHS[m - 1].slice(1) : "Sin mes")); }
+    const r = h("button", { class: "rw-row", onclick: () => openEdit(g.id) }, rwThumb(g), h("span", { class: "n" }, g.title), g.rating != null ? h("span", { class: "v", style: `color:${ratingColor(g.rating)}` }, fmtRating(g.rating)) : null);
+    parts.push(r);
+  }
   body.replaceChildren(...parts);
 }
 function openRewind(y) {
