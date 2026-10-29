@@ -241,6 +241,19 @@ main.enter{animation:pageIn .22s ease-out}
   nav.tabs button:hover{color:var(--text)}
   .cat-h:hover .cat-go{color:var(--accent)}
 }
+
+.rw-card{display:flex;align-items:center;gap:12px;width:100%;margin:0 0 20px;padding:14px 16px;text-align:left;border-radius:var(--r);background:linear-gradient(120deg,var(--surface2),var(--surface))}
+.rw-card b{display:block;font-size:17px}.rw-card small{color:var(--muted);font-size:13px}.rw-card span:first-child{flex:1}.rw-card .cat-go{font-size:22px;color:var(--accent)}
+.rw-sel{width:auto;margin:0 0 14px}
+.rw-tot{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px}
+.rw-tot div{background:var(--surface);border-radius:var(--r);padding:12px 8px;text-align:center}.rw-tot b{display:block;font-size:24px}.rw-tot small{color:var(--muted);font-size:12px}
+.rw-h{margin:18px 0 8px;font-size:15px;color:var(--accent)}
+.rw-row{display:flex;align-items:center;gap:10px;padding:6px 0}.rw-row .th{width:36px;height:50px;flex:none;border-radius:3px;background:var(--surface2) center/cover no-repeat;display:grid;place-items:center;font-weight:700;color:var(--muted)}
+.rw-row .n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rw-row .v{font-weight:700}
+.rw-months{display:grid;grid-template-columns:repeat(12,1fr);gap:4px;align-items:end;height:120px}
+.rw-months div{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;font-size:11px;color:var(--muted)}
+.rw-months i{display:block;width:100%;background:var(--accent);border-radius:2px 2px 0 0;min-height:2px;margin-bottom:3px}.rw-months em{font-style:normal;color:var(--text);font-size:11px}
+.rw-bar{display:flex;align-items:center;gap:8px;margin:5px 0;font-size:14px}.rw-bar span:first-child{width:96px;flex:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.rw-bar i{display:block;height:10px;background:var(--accent);border-radius:2px}.rw-bar span:last-child{color:var(--muted)}
 </style>
 </head>
 <body>
@@ -350,6 +363,12 @@ main.enter{animation:pageIn .22s ease-out}
 </div></dialog>
 
 <!-- Imagen de la lista -->
+<dialog id="dlgRew"><div class="sheet">
+  <h2><span>Rewind</span><button class="icon-btn" data-close aria-label="Cerrar">✕</button></h2>
+  <select id="rwYear" class="rw-sel" aria-label="Año"></select>
+  <div id="rwBody"></div>
+</div></dialog>
+
 <dialog id="dlgImg"><div class="sheet">
   <h2><span id="imgHead">Imagen</span><button class="icon-btn" data-close aria-label="Cerrar">✕</button></h2>
   <div class="seg" id="imgMode">
@@ -555,9 +574,52 @@ function tileEl(g, showFav = false) {
   t.append(h("div", { class: "cap" }, h("b", {}, g.title), g.hours != null ? h("i", {}, fmtHours(g.hours)) : null));
   return t;
 }
+
+// Rewind: resumen por año de los juegos terminados (Jugados con fecha de ese año).
+const playedYM = g => g.playedY ? [g.playedY, g.playedM || null] : g.finished ? [new Date(g.finished).getFullYear(), new Date(g.finished).getMonth() + 1] : [null, null];
+const gamesOfYear = y => games.filter(g => g.status === "played" && playedYM(g)[0] === y);
+const rewindYears = () => [...new Set(games.filter(g => g.status === "played").map(g => playedYM(g)[0]).filter(Boolean))].sort((a, b) => b - a);
+function rewindStats(list) {
+  const hrs = list.reduce((a, g) => a + (g.hours || 0), 0), rated = list.filter(g => g.rating != null);
+  return { n: list.length, hrs, avg: rated.length ? rated.reduce((a, g) => a + g.rating, 0) / rated.length : null };
+}
+function rwThumb(g) { const t = h("span", { class: "th" }); const u = safeUrl(g.cover); if (u) t.style.backgroundImage = `url("${u.replace(/"/g, "%22")}")`; else t.append((g.title || "?").trim().charAt(0).toUpperCase()); return t; }
+function rwList(list, val) { return list.map(g => h("div", { class: "rw-row" }, rwThumb(g), h("span", { class: "n" }, g.title), h("span", { class: "v" }, val(g)))); }
+function paintRewind() {
+  const y = parseInt($("#rwYear").value, 10), list = gamesOfYear(y), st = rewindStats(list), body = $("#rwBody");
+  const box = (v, l) => h("div", {}, h("b", {}, v), h("small", {}, l));
+  const parts = [h("div", { class: "rw-tot" }, box(String(st.n), st.n === 1 ? "juego" : "juegos"), box(st.hrs ? fmtHours(st.hrs) : "—", "horas"), box(st.avg == null ? "—" : fmtRating(Math.round(st.avg * 10) / 10), "nota media"))];
+  const best = list.filter(g => g.rating != null).sort((a, b) => b.rating - a.rating || (b.hours || 0) - (a.hours || 0)).slice(0, 3);
+  if (best.length) parts.push(h("h3", { class: "rw-h" }, "Mejor valorados"), ...rwList(best, g => fmtRating(g.rating)));
+  const long = list.filter(g => g.hours).sort((a, b) => b.hours - a.hours).slice(0, 3);
+  if (long.length) parts.push(h("h3", { class: "rw-h" }, "Los que más horas"), ...rwList(long, g => fmtHours(g.hours)));
+  const per = Array(12).fill(0); let noMonth = 0;
+  for (const g of list) { const m = playedYM(g)[1]; if (m) per[m - 1]++; else noMonth++; }
+  const mx = Math.max(1, ...per);
+  parts.push(h("h3", { class: "rw-h" }, "Por mes"), h("div", { class: "rw-months" }, ...per.map((n, i) => h("div", { title: `${MONTHS[i]}: ${n}` }, n ? h("em", {}, String(n)) : null, h("i", { style: `height:${Math.round(n / mx * 90)}px;opacity:${n ? 1 : .25}` }), MONTHS[i].slice(0, 3)))));
+  if (noMonth) parts.push(h("p", { class: "note" }, `${noMonth} sin mes indicado.`));
+  const pl = new Map(); for (const g of list) for (const p of splitPlats(g.platforms)) pl.set(p, (pl.get(p) || 0) + 1);
+  const pls = [...pl].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])), pm = pls.length ? pls[0][1] : 1;
+  if (pls.length) parts.push(h("h3", { class: "rw-h" }, "Plataformas"), ...pls.map(([p, n]) => h("div", { class: "rw-bar" }, h("span", {}, p), h("i", { style: `width:${Math.max(4, Math.round(n / pm * 100))}px` }), h("span", {}, String(n)))));
+  const nop = list.filter(g => !splitPlats(g.platforms).length).length;
+  if (nop) parts.push(h("p", { class: "note" }, `${nop} sin plataforma indicada.`));
+  body.replaceChildren(...parts);
+}
+function openRewind(y) {
+  const ys = rewindYears(); if (!ys.length) return;
+  $("#rwYear").replaceChildren(...ys.map(v => h("option", { value: String(v) }, String(v)))); $("#rwYear").value = String(y && ys.includes(y) ? y : ys[0]);
+  paintRewind(); openDlg($("#dlgRew"));
+}
+$("#rwYear").addEventListener("change", paintRewind);
 function renderHome() {
   const box = $("#home"); box.replaceChildren();
   if (!games.length) { box.append(h("div", { class: "empty" }, h("b", {}, "Tu biblioteca está vacía"), "Pulsa + para añadir tu primer juego.")); return; }
+  const ys = rewindYears();
+  if (ys.length) {
+    const st = rewindStats(gamesOfYear(ys[0]));
+    box.append(h("button", { class: "rw-card", onclick: () => openRewind(ys[0]), "aria-label": `Ver el Rewind de ${ys[0]}` },
+      h("span", {}, h("b", {}, `Rewind ${ys[0]}`), h("small", {}, `${st.n} ${st.n === 1 ? "juego" : "juegos"}${st.hrs ? " · " + fmtHours(st.hrs) : ""}`)), h("span", { class: "cat-go", "aria-hidden": "true" }, "›")));
+  }
   for (const id of CATS) {
     const items = inCat(id).sort(byRank(rankKey(id)));
     const sec = h("section", { class: "cat", "aria-label": catLabel(id) });

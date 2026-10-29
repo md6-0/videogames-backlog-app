@@ -1,4 +1,4 @@
-const VERSION = "v37";
+const VERSION = "v38";
 const CACHE = "biblioteca-" + VERSION;
 // Portadas: caché propia, sin versión, para que sobreviva a las actualizaciones de la app.
 const COVERS = "biblioteca-portadas-2";
