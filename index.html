@@ -575,8 +575,8 @@ function tileEl(g, showFav = false) {
   return t;
 }
 
-// Rewind: resumen por año de los juegos terminados (Jugados con fecha de ese año).
-const playedYM = g => g.playedY ? [g.playedY, g.playedM || null] : g.finished ? [new Date(g.finished).getFullYear(), new Date(g.finished).getMonth() + 1] : [null, null];
+// Rewind: resumen por año de los juegos terminados (Jugados con año indicado en "cuándo lo jugué"; sin fecha no cuenta).
+const playedYM = g => g.playedY ? [g.playedY, g.playedM || null] : [null, null];
 const gamesOfYear = y => games.filter(g => g.status === "played" && playedYM(g)[0] === y);
 const rewindYears = () => [...new Set(games.filter(g => g.status === "played").map(g => playedYM(g)[0]).filter(Boolean))].sort((a, b) => b - a);
 function rewindStats(list) {
