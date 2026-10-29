@@ -136,6 +136,8 @@ main.enter{animation:pageIn .22s ease-out}
 .sheet.add .btns{margin-top:0;flex:none}
 .sheet.add>*{flex:none}
 .sheet.add>#results{flex:1 1 0}
+.btns.stack{flex-direction:column}
+.btns.stack #askYes{order:1}.btns.stack #askAlt{order:2}.btns.stack #askNo{order:3}
 .menu{display:flex;flex-direction:column;gap:8px}
 .menu .mi{width:100%;text-align:left;padding:14px;border-radius:10px;background:var(--surface2);font-size:16px;font-weight:600}
 .menu .mi.danger{color:var(--bad)}
@@ -339,8 +341,9 @@ main.enter{animation:pageIn .22s ease-out}
 <dialog id="dlgAsk"><div class="sheet">
   <h2><span id="askTitle">Confirmar</span><button class="icon-btn" data-close aria-label="Cerrar">✕</button></h2>
   <p id="askText" style="margin:0 0 4px"></p>
-  <div class="btns">
+  <div class="btns" id="askBtns">
     <button class="btn" id="askNo">Cancelar</button>
+    <button class="btn hidden" id="askAlt"></button>
     <button class="btn primary" id="askYes">Aceptar</button>
   </div>
 </div></dialog>
@@ -630,17 +633,21 @@ for (const d of document.querySelectorAll("dialog"))
 { d.addEventListener("click", e => { if (e.target === d) d.close(); }); d.addEventListener("close", placeUpd); }
 
 /* confirmación en un panel propio (en lugar del confirm() del navegador) */
-function ask({ title, text, ok = "Aceptar", danger = false }) {
+// Devuelve "ok", "alt" (si hay segunda opción) o false (cancelado).
+function ask({ title, text, ok = "Aceptar", danger = false, alt = "" }) {
   return new Promise(resolve => {
     const d = $("#dlgAsk");
     $("#askTitle").textContent = title; $("#askText").textContent = text;
     const yes = $("#askYes"); yes.textContent = ok; yes.className = "btn " + (danger ? "danger" : "primary");
+    const a = $("#askAlt"); a.textContent = alt; a.classList.toggle("hidden", !alt);
+    $("#askBtns").classList.toggle("stack", !!alt);
     d.returnValue = "";
-    d.addEventListener("close", () => resolve(d.returnValue === "ok"), { once: true });
+    d.addEventListener("close", () => resolve(d.returnValue || false), { once: true });
     openDlg(d);
   });
 }
 $("#askYes").addEventListener("click", () => { const d = $("#dlgAsk"); d.returnValue = "ok"; d.close(); });
+$("#askAlt").addEventListener("click", () => { const d = $("#dlgAsk"); d.returnValue = "alt"; d.close(); });
 $("#askNo").addEventListener("click", () => $("#dlgAsk").close());
 
 /* editar */
@@ -878,7 +885,39 @@ function blank(over = {}) {
   return { id: uid(), title: "", year: null, platforms: "", cover: "", rawgId: null, status: STATUS.some(s => s.id === tab) ? tab : "backlog",
     rating: null, hours: null, favorite: tab === "fav", notes: "", added: Date.now(), updated: Date.now(), finished: null, ...over };
 }
+// ¿Ya tienes este juego? Mismo rawgId; si falta en alguno, mismo título (sin tildes ni signos) y, si ambos traen año, el mismo año.
+const normTitle = t => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+function isSameGame(a, b) {
+  if (a.rawgId != null && b.rawgId != null) return a.rawgId === b.rawgId;
+  if (!normTitle(a.title) || normTitle(a.title) !== normTitle(b.title)) return false;
+  return !(a.year && b.year && a.year !== b.year);
+}
+const addTarget = () => CATS.includes(tab) ? tab : "backlog";   // categoría en la que se va a añadir (desde Inicio, Backlog)
+const inTarget = (g, cat) => cat === "fav" ? g.favorite : g.status === cat;
+// Devuelve true si hay que crear un juego nuevo igualmente; false si ya se ha resuelto (movido, abierto) o se ha cancelado.
+async function resolveDuplicate(over) {
+  const cat = addTarget();
+  const dups = games.filter(g => isSameGame(g, over));
+  if (!dups.length) return true;
+  const dup = dups.find(g => inTarget(g, cat)) || dups[0];
+  const where = dup.favorite && cat === "fav" ? "Favoritos" : catLabel(dup.status);
+  if (inTarget(dup, cat)) {
+    const r = await ask({ title: "Ya lo tienes", text: `"${dup.title}" ya está en ${catLabel(cat)}.`, ok: "Ver el que tengo", alt: "Añadir otro igualmente" });
+    if (r === "alt") return true;
+    if (r === "ok") { $("#dlgAdd").close(); openEdit(dup.id); }
+    return false;
+  }
+  const verb = cat === "fav" ? "Añadir a Favoritos" : "Moverlo a " + catLabel(cat);
+  const r = await ask({ title: "Ya lo tienes", text: `"${dup.title}" ya está en ${where}.`, ok: verb, alt: "Añadir otro igualmente" });
+  if (r === "alt") return true;
+  if (r !== "ok") return false;
+  if (cat === "fav") { dup.favorite = true; dup.favRank = null; appendRank(dup, "favRank", games.filter(x => x.favorite)); }
+  else { dup.status = cat; dup.updated = Date.now(); if (cat === "played") { if (!dup.finished) dup.finished = Date.now(); stampPlayed(dup); } dup.rank = null; appendRank(dup, "rank", games.filter(x => x.status === cat)); }
+  await DB.put(dup); $("#dlgAdd").close(); render(); toast(cat === "fav" ? "Añadido a Favoritos" : "Movido a " + catLabel(cat), "success");
+  return false;
+}
 async function addGame(over) {
+  if (!(await resolveDuplicate({ title: over.title || "", year: over.year ?? null, rawgId: over.rawgId ?? null }))) return;
   const g = blank(over);
   if (g.status === "played") stampPlayed(g);
   appendRank(g, "rank", games.filter(x => x.status === g.status));
