@@ -1,0 +1,64 @@
+/* ==========================================================================
+   Rewind: resumen anual. Es el único apartado con estilo festivo.
+   ========================================================================== */
+:root {
+  --rw-gold: #ffd166; --rw-pink: #ff6ec7; --rw-violet: #b88cff;
+  --rw-title: linear-gradient(90deg, var(--rw-gold), var(--rw-pink), var(--accent));
+}
+
+/* Acceso desde Inicio (solo el Rewind del año en curso, desde el 1 de diciembre) */
+.rw-card { display: flex; align-items: center; gap: 12px; width: 100%; margin: 0 0 20px; padding: 14px 16px; text-align: left; border-radius: var(--radius-card); background: linear-gradient(120deg, #215b98, #4090cb); box-shadow: 0 6px 18px rgba(42,110,170,.28); }
+.rw-card span:first-child { flex: 1; }
+.rw-card b { display: block; font-size: 17px; color: #fff; }
+.rw-card small { font-size: 13px; color: rgba(255,255,255,.88); }
+.rw-card .cat-go { font-size: 22px; color: #fff; }
+
+/* Panel */
+#dlgRew { background: radial-gradient(120% 50% at 50% 0, #3b2a6b 0, transparent 62%), radial-gradient(90% 40% at 100% 12%, #12506b 0, transparent 60%), var(--surface); }
+#dlgRew .sheet h2 { background: var(--rw-title); -webkit-background-clip: text; background-clip: text; color: transparent; font-weight: 800; }
+#dlgRew .icon-btn { background: rgba(255,255,255,.10); border: 1px solid rgba(255,255,255,.12); color: var(--text); }
+
+.rw-hero { position: relative; overflow: hidden; padding: 6px 0 16px; text-align: center; }
+.rw-hero small { display: block; font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #d8c7ff; }
+.rw-year { margin: 2px 0 8px; font-size: 64px; line-height: 1.05; font-weight: 900; background: var(--rw-title); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 2px 12px rgba(255,110,199,.35)); }
+.rw-hero select { display: inline-block; width: auto; margin: 0; border-radius: 999px; background-color: rgba(255,255,255,.12); border-color: rgba(255,255,255,.25); }
+
+/* confeti */
+.rw-conf { position: absolute; inset: 0; pointer-events: none; }
+.rw-conf i { position: absolute; top: -12px; width: 7px; height: 12px; border-radius: 2px; opacity: .9; animation: rwfall 5s linear infinite; }
+@keyframes rwfall { 0% { transform: translateY(0) rotate(0); } 100% { transform: translateY(190px) rotate(540deg); opacity: 0; } }
+
+/* secciones: entran una tras otra */
+.rw-sec { animation: rwup .5s var(--ease-out) both; }
+@keyframes rwup { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+.rw-h { margin: 18px 0 8px; font-size: 15px; color: var(--rw-gold); }
+.rw-m { margin: 12px 0 2px; font-size: 13px; font-weight: 600; color: var(--muted); }
+
+/* totales */
+.rw-tot { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 18px; }
+.rw-tot div { padding: 12px 8px; border-radius: 3px; text-align: center; background: linear-gradient(160deg, rgba(255,255,255,.14), rgba(255,255,255,.04)); border: 1px solid rgba(255,255,255,.14); }
+.rw-tot em { display: block; font-style: normal; font-size: 20px; }
+.rw-tot b { display: block; font-size: 26px; background: linear-gradient(90deg, var(--rw-gold), #ff9ecb); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.rw-tot small { font-size: 12px; color: var(--muted); }
+
+/* filas de juego (rankings y calendario) */
+.rw-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; }
+.rw-row .med { flex: none; width: 28px; font-size: 22px; text-align: center; }
+.rw-row .th { flex: none; width: 36px; height: 50px; border-radius: 3px; display: grid; place-items: center; background: var(--surface2) center/cover no-repeat; font-weight: 700; color: var(--muted); }
+.rw-row .n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rw-row .v { font-weight: 700; }
+.rw-row .hrs { font-size: 13px; color: var(--muted); white-space: nowrap; }
+.rw-row .tag { min-width: 30px; padding: 2px 8px; border-radius: 8px; text-align: center; font-size: 12px; font-weight: 800; color: #0f1115; }
+
+/* gráfico por mes */
+.rw-months { display: grid; grid-template-columns: repeat(12, 1fr); gap: 4px; align-items: end; height: 120px; }
+.rw-months div { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; font-size: 11px; color: var(--muted); }
+.rw-months i { display: block; width: 100%; min-height: 2px; margin-bottom: 3px; border-radius: 2px 2px 0 0; background: linear-gradient(180deg, var(--rw-pink), var(--accent)); }
+.rw-months i.top { background: linear-gradient(180deg, var(--rw-gold), #ff9e3d); box-shadow: 0 0 12px rgba(255,209,102,.6); }
+.rw-months em { font-style: normal; font-size: 11px; color: var(--text); }
+
+/* plataformas */
+.rw-bar { display: flex; align-items: center; gap: 8px; margin: 5px 0; font-size: 14px; }
+.rw-bar span:first-child { flex: none; width: 96px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rw-bar i { display: block; height: 10px; border-radius: 2px; background: linear-gradient(90deg, var(--accent), var(--rw-violet)); }
+.rw-bar span:last-child { color: var(--muted); }
